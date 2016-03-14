@@ -1,0 +1,14 @@
+; vbODBC.def : DLL 用のモジュール パラメータ宣言
+
+LIBRARY      "vbODBC"
+
+EXPORTS
+    ; 明示的なエクスポートはここへ記述できます
+
+	terminateODBC = terminateODBC
+	initODBC = initODBC
+	selectODBC = selectODBC
+	selectODBC_zip = selectODBC_zip
+	columnAttributes = columnAttributes
+	execODBC = execODBC
+	
