@@ -11,76 +11,72 @@
 #include "stdafx.h"
 #include "odbcResource.hpp"
 #include <memory>
+#include <vector>
 #include <OleAuto.h>
 
 namespace   {
     using tstring = odbc_raii_statement::tstring;
-    std::unique_ptr<odbc_raii_env>          pODBCEnv;
-    std::unique_ptr<odbc_raii_connect>      pODBCConn;
-    std::unique_ptr<odbc_raii_statement>    pODBCStmt;
+
+    struct odbc_set  {  
+        odbc_raii_env        env;
+        odbc_raii_connect    con;
+        odbc_raii_statement  st;
+        odbc_set(const tstring& connectName) : env{}, con{}
+        {
+            env.AllocHandle();
+            con.AllocHandle(env);
+            st.AllocHandle(connectName, con);
+        }
+    };
+
+    using pODBCStmt = std::unique_ptr<odbc_set>;
+    std::vector<pODBCStmt>                  vODBCStmt;
+
     tstring getTypeStr(SQLSMALLINT);
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
-    auto selectODBC_result(VARIANT*, std::vector<SQLSMALLINT>&,__int32)
+    auto selectODBC_result(__int32, VARIANT*, std::vector<SQLSMALLINT>&, __int32)
         ->odbc_raii_select::result_type;
     BSTR getBSTR(VARIANT* expr);
 }
 
-/*VARIANT __stdcall getSQLDrivers(__int16 delim)
+__int32 __stdcall terminateODBC(__int32 myNo)
 {
-    VARIANT ret;
-    VariantInit(&ret);
-    TCHAR   buf[2048];
-    WORD    size = 0;
-    SQLGetInstalledDrivers((LPTSTR)buf, sizeof(buf), &size);
-    for(TCHAR* p = buf; p[0] != _T('\0'); )
-    {
-        auto tmplen = _tcslen(p);
-        p[tmplen] = static_cast<TCHAR>(delim);
-        p += tmplen + 1;
-    }
-    ret.vt = VT_BSTR;
-    ret.bstrVal = SysAllocString(buf);
-    return ret;
-}*/
-
-__int32 __stdcall terminateODBC()
-{
-    pODBCStmt.reset();
-    pODBCConn.reset();
-    pODBCEnv.reset();
+    if ( 0 <= myNo && myNo < vODBCStmt.size() )
+        vODBCStmt[myNo].reset();
     return 0;
 }
 
-__int32 __stdcall initODBC(VARIANT* rawStr)
+__int32 __stdcall initODBC(__int32 myNo, VARIANT* rawStr)
 {
     BSTR bstr = getBSTR(rawStr);
     if (!bstr )                     return -1;
-    pODBCStmt.reset();
-    pODBCConn.reset();
-    pODBCEnv = std::make_unique<odbc_raii_env>();
-    pODBCConn = std::make_unique<odbc_raii_connect>();
-    pODBCStmt = std::make_unique<odbc_raii_statement>();
+    tstring connectName{bstr};
     try
     {
-        pODBCEnv->AllocHandle();
-        pODBCConn->AllocHandle(*pODBCEnv);
-        tstring connectName = bstr;
-        tstring tstr = pODBCStmt->AllocHandle(connectName, *pODBCConn);
+        if ( 0 <= myNo && myNo < vODBCStmt.size() )
+        {
+            vODBCStmt[myNo] = std::make_unique<odbc_set>(connectName);
+        }
+        else
+        {
+            vODBCStmt.push_back(std::make_unique<odbc_set>(connectName));
+            myNo = static_cast<int>(vODBCStmt.size() - 1);
+        }
     }
-    catch (RETCODE rc)
+    catch ( RETCODE )
     {
-        terminateODBC();
-        return static_cast<__int32>(rc);
+        terminateODBC(myNo);
+        return -1;
     }
-    return 0;
+    return myNo;
 }
 
-VARIANT __stdcall selectODBC(VARIANT* SQL, __int32 timeOutSec)
+VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
 {
     VARIANT ret;
     ::VariantInit(&ret);
     std::vector<SQLSMALLINT> coltype;
-    auto result = selectODBC_result(SQL, coltype, timeOutSec);
+    auto result = selectODBC_result(myNo, SQL, coltype, timeOutSec);
     if ( result.empty() )   return ret;
     std::size_t const row = result.size();
     std::size_t const col = result[0].size();
@@ -114,12 +110,12 @@ VARIANT __stdcall selectODBC(VARIANT* SQL, __int32 timeOutSec)
     return ret;
 }
 
-VARIANT __stdcall selectODBC_zip(VARIANT* SQL, __int32 timeOutSec)
+VARIANT __stdcall selectODBC_zip(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
 {
     VARIANT ret;
     ::VariantInit(&ret);
     std::vector<SQLSMALLINT> coltype;
-    auto result = selectODBC_result(SQL, coltype, timeOutSec);
+    auto result = selectODBC_result(myNo, SQL, coltype, timeOutSec);
     if ( result.empty() )   return ret;
     std::size_t const row = result.size();
     std::size_t const col = result[0].size();
@@ -159,12 +155,12 @@ VARIANT __stdcall selectODBC_zip(VARIANT* SQL, __int32 timeOutSec)
     return ret;
 }
 
-VARIANT __stdcall columnAttributes(VARIANT* SQL)
+VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
 {
     VARIANT ret;
     ::VariantInit(&ret);
     BSTR bstr = getBSTR(SQL);
-    if ( !bstr || !pODBCStmt || !pODBCConn || !pODBCEnv )
+    if ( !bstr || myNo < 0 || vODBCStmt.size() <= myNo )
         return ret;
     using column_name_type = odbc_raii_select::column_name_type;
     std::vector<column_name_type>   colname;
@@ -177,9 +173,9 @@ VARIANT __stdcall columnAttributes(VARIANT* SQL)
     SQLSMALLINT     nresultcols = 0;
     try {
         odbc_raii_select    odbcSelect;
-        cursor_colser       c_closer(*pODBCStmt);
+        cursor_colser       c_closer(vODBCStmt[myNo]->st);
         nresultcols = odbcSelect.columnAttribute(tstring(bstr),
-                                                *pODBCStmt,
+                                                vODBCStmt[myNo]->st,
                                                 colname,
                                                 colnamelen,
                                                 collen,
@@ -232,9 +228,9 @@ VARIANT __stdcall columnAttributes(VARIANT* SQL)
     return ret;
 }
 
-__int32 __stdcall execODBC(VARIANT* SQLs)
+__int32 __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
 {
-    if ( !pODBCStmt || !pODBCConn || !pODBCEnv )        return 0;
+    if ( myNo < 0 || vODBCStmt.size() <= myNo )         return 0;
     if ( !SQLs ||  0 == (VT_ARRAY & SQLs->vt ) )        return 0;
     SAFEARRAY* pArray = ( 0 == (VT_BYREF & SQLs->vt) )?  (SQLs->parray): (*SQLs->pparray);
     if ( !pArray || 1 != ::SafeArrayGetDim(pArray) )    return 0;
@@ -247,7 +243,7 @@ __int32 __stdcall execODBC(VARIANT* SQLs)
     }
     __int32 count = 0;
     odbc_raii_select    odbcSelect;
-    cursor_colser       c_close(*pODBCStmt);
+    cursor_colser       c_close(vODBCStmt[myNo]->st);
     VARIANT elem;
     ::VariantInit(&elem);
     for ( ULONG i = 0; i < bounds.cElements; ++i )
@@ -256,7 +252,7 @@ __int32 __stdcall execODBC(VARIANT* SQLs)
         ::SafeArrayGetElement(pArray, &index, &elem);
         if (elem.vt == VT_BSTR && elem.bstrVal )
         {
-            auto const rc = odbcSelect.execDirect(tstring(elem.bstrVal), *pODBCStmt);
+            auto const rc = odbcSelect.execDirect(tstring(elem.bstrVal), vODBCStmt[myNo]->st);
             if ( rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO )     ++count;
         }
         ::VariantClear(&elem);
@@ -375,19 +371,19 @@ namespace   {
         }
     }
 
-    auto selectODBC_result(VARIANT* SQL, std::vector<SQLSMALLINT>& coltype,__int32 timeOutSec)
+    auto selectODBC_result(__int32 myNo, VARIANT* SQL, std::vector<SQLSMALLINT>& coltype, __int32 timeOutSec)
         ->odbc_raii_select::result_type
     {
         odbc_raii_select::result_type result;
         BSTR bstr = getBSTR(SQL);
-        if ( !bstr || !pODBCStmt || !pODBCConn || !pODBCEnv )
+        if ( !bstr || myNo < 0 || vODBCStmt.size() <= myNo )
             return result;
         odbc_raii_select    odbcSelect;
-        cursor_colser       c_close(*pODBCStmt);
+        cursor_colser       c_close(vODBCStmt[myNo]->st);
         try {
             result = odbcSelect.select(  timeOutSec,
                                          tstring(bstr),
-                                         *pODBCStmt,
+                                         vODBCStmt[myNo]->st,
                                          nullptr, nullptr, nullptr, nullptr,
                                          &coltype,
                                          nullptr, nullptr);
