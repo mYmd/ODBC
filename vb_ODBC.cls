@@ -23,27 +23,35 @@ Option Explicit
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
 '   Function        select_zip      Select文を発行して結果をZIP配列としてメンバに格納する
+'   Function        rowSize         テーブルのレコード数
+'   Function        colSize         テーブルのカラム数
 '   Function        get_data        Select したテーブルデータのコピーを返す
 '   Function        move_data       Select したテーブルデータをmoveして返す
 '   Function        SQLDrivers      インストールされているODBCドライバ配列を返す
 '   Function        excel_expr      特定のExcelブックに接続するための接続文字列
 '*********************************************************************************
 
-Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" () As Long
+Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
 
-Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" (ByRef rawStr As Variant) As Long
+Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
+                                        ByVal n As Long, _
+                                    ByRef rawStr As Variant) As Long
 
 Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
-                            ByRef sql As Variant, _
+                                    ByVal n As Long, _
+                                ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
 Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC.dll" ( _
-                            ByRef sql As Variant, _
+                                    ByVal n As Long, _
+                                ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" (ByRef sql As Variant) As Variant
+Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
+                                (ByVal n As Long, ByRef sql As Variant) As Variant
 
-Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" (ByRef SQLs As Variant) As Long
+Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
+                        (ByVal n As Long, ByRef SQLs As Variant) As Long
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                                 ByVal buf As String, _
@@ -54,7 +62,11 @@ Private connectionString   As String    ' 接続文字列
 Private mySQL_       As String
 Private myheader_    As Variant
 Private mydata_      As Variant
+Private myNo_        As Long
 
+Private Sub Class_Initialize()
+    myNo_ = -1
+End Sub
 
 Private Sub Class_Terminate()
     disconnect
@@ -63,13 +75,15 @@ End Sub
 
 ' 接続文字列を発行してデータベースに接続
 Public Function connect(ByVal connectionExpr As String) As Boolean
-    connect = (0 = initODBC(connectionExpr))
+    myNo_ = initODBC(myNo_, connectionExpr)
+    connect = (0 <= myNo_)
     If connect Then connectionString = connectionExpr
 End Function
 
 ' 接続断
 Public Sub disconnect()
-    terminateODBC
+    terminateODBC myNo_
+    myNo_ = -1
 End Sub
 
 ' ヘッダ（カラム）データとテーブルデータを消去
@@ -89,10 +103,10 @@ Public Property Get last_SQL() As String
 End Property
 
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
-Public Function read_header(ByVal sqlExpr As String) As Long
+Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
-    myheader_ = columnAttributes(sqlExpr)
-    read_header = rowSize(myheader_)
+    myheader_ = columnAttributes(myNo_, sqlExpr)
+    Set read_header = Me
 End Function
 
 ' メンバに格納されたヘッダ（カラム）情報を取得する
@@ -105,19 +119,29 @@ Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Vari
 End Function
 
 ' Select文を発行して結果を2次元配列としてメンバに格納する
-Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As Long
+Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
-    Dim i As Long:    i = read_header(sqlExpr)
-    mydata_ = selectODBC(sqlExpr, timeOutSec)
-    select_flat = rowSize(mydata_)
+    read_header sqlExpr
+    mydata_ = selectODBC(myNo_, sqlExpr, timeOutSec)
+    Set select_flat = Me
 End Function
 
 ' Select文を発行して結果をZIP配列としてメンバに格納する
-Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As Long
+Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
-    Dim i As Long:    i = read_header(sqlExpr)
-    mydata_ = selectODBC_zip(sqlExpr, timeOutSec)
-    select_zip = rowSize(mydata_)
+    read_header sqlExpr
+    mydata_ = selectODBC_zip(myNo_, sqlExpr, timeOutSec)
+    Set select_zip = Me
+End Function
+
+' テーブルのレコード数
+Public Function rowSize() As Long
+    rowSize = Haskell_2_stdFun.rowSize(mydata_)
+End Function
+
+' テーブルのカラム数
+Public Function colSize() As Long
+    colSize = Haskell_2_stdFun.colSize(mydata_)
 End Function
 
 ' Select したテーブルデータのコピーを返す
