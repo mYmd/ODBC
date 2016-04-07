@@ -34,7 +34,7 @@ Option Explicit
 
 Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
 
-Private Declare PtrSafe Function initODBC Lib "H:\Projects\LIB\vbODBC.dll" ( _
+Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
                                         ByVal n As Long, _
                                     ByRef rawStr As Variant) As Long
 
