@@ -19,6 +19,7 @@ Option Explicit
 '   Sub             clear           ヘッダ（カラム）データとテーブルデータを消去
 '   Property Get    last_connected  最後に成功した接続文字列の取得
 '   Property Get    last_SQL        最後に発行されたSQL文字列の取得
+'   Property Get    last_elapsed    最後に発行されたSELECT文でかかった時間 (ミリ秒)
 '   Function        read_header     Select文を発行してヘッダ（カラム）情報をメンバに格納する
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
@@ -33,7 +34,7 @@ Option Explicit
 
 Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
 
-Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function initODBC Lib "H:\Projects\LIB\vbODBC.dll" ( _
                                         ByVal n As Long, _
                                     ByRef rawStr As Variant) As Long
 
@@ -58,11 +59,14 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal cbBufMax As Integer, _
                                         ByRef pcchBufOut As Integer) As Byte
 
+Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
+
 Private connectionString   As String    ' 接続文字列
 Private mySQL_       As String
 Private myheader_    As Variant
 Private mydata_      As Variant
 Private myNo_        As Long
+Private laptime_     As Long
 
 Private Sub Class_Initialize()
     myNo_ = -1
@@ -102,10 +106,17 @@ Public Property Get last_SQL() As String
     last_SQL = mySQL_
 End Property
 
+' 最後に発行されたSELECT文でかかった時間（ミリ秒）
+Public Property Get last_elapsed() As Long
+    last_elapsed = laptime_
+End Property
+
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
+    laptime_ = GetTickCount()
     myheader_ = columnAttributes(myNo_, sqlExpr)
+    laptime_ = GetTickCount() - laptime_
     Set read_header = Me
 End Function
 
@@ -122,7 +133,9 @@ End Function
 Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
+    laptime_ = GetTickCount()
     mydata_ = selectODBC(myNo_, sqlExpr, timeOutSec)
+    laptime_ = GetTickCount() - laptime_
     Set select_flat = Me
 End Function
 
@@ -130,7 +143,9 @@ End Function
 Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
+    laptime_ = GetTickCount()
     mydata_ = selectODBC_zip(myNo_, sqlExpr, timeOutSec)
+    laptime_ = GetTickCount() - laptime_
     Set select_zip = Me
 End Function
 
