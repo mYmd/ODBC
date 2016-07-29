@@ -183,7 +183,8 @@ Public Function excel_expr(ByVal bookName As String) As String
     Dim i As Variant
     excel_expr = "Microsoft Excel Driver"
     drivers = SQLDrivers
-    i = find_pred(p_equal(excel_expr), mapF(p_left(, Len(excel_expr)), SQLDrivers))
+    permutate drivers, reverse(sortIndex(mapF(p_len, drivers)))
+    i = find_pred(p_equal(excel_expr), mapF(p_left(, Len(excel_expr)), drivers))
     If i <= UBound(drivers) Then
         excel_expr = "DBA=R; Driver={" & drivers(i) & "}; DBQ="
         excel_expr = excel_expr & bookName
