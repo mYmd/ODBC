@@ -164,7 +164,8 @@ odbc_raii_select::columnAttribute(  const tstring&                  sql_expr    
         if (pBuffer)
         {
             auto& buffer = *pBuffer;
-            buffer[j].resize(0<collen[j] ? collen[j]+1 : StrSizeofColumn);
+            auto dlen = collen[j];
+            buffer[j].resize((0 < dlen && dlen < StrSizeofColumn) ? dlen+1 : StrSizeofColumn);
             rc = do_SQLBindCol( stmt                            , 
                                 static_cast<UWORD>(j+1)         ,
                                 &buffer[j][0]                   ,
