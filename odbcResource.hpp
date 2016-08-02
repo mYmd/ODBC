@@ -81,7 +81,7 @@ class odbc_raii_select	{
 public:
 	using tstring = odbc_raii_statement::tstring;
 	using result_type = std::vector<std::vector<tstring>>;
-    static const std::size_t    StrSizeofColumn = 512;
+    static const std::size_t    StrSizeofColumn = 16384;
     static const std::size_t    ColumnNameLen = 256;
     using column_name_type = std::array<TCHAR, ColumnNameLen>;
     odbc_raii_select()  {}
