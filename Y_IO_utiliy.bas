@@ -18,7 +18,7 @@ Option Explicit
 ' vec = True：1次元配列化
 ' vec = Fale：2次元配列（デフォルト）
 ' LBound = 0 の配列となる
-Function sheet2m(ByRef r As Object, Optional ByVal vec As Boolean = False) As Variant
+Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         If r.cells.count = 1 Then
             sheet2m = makeM(1, 1, r.value)
@@ -32,7 +32,7 @@ End Function
 
 ' 配列をExcelシートのセル範囲にペースト（左上のセルを指定）
 ' vertical = True：1次元配列を縦にペーストする
-Sub m2sheet(ByRef matrix As Variant, ByRef r As Object, Optional ByVal vertical As Boolean = False)
+Sub m2sheet(ByRef matrix As Variant, ByVal r As Object, Optional ByVal vertical As Boolean = False)
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Select Case Dimension(matrix)
         Case 0:
