@@ -8,17 +8,18 @@ Option Explicit
 '*********************************************************************************
 '   Function    sheet2m         Excelシートのセル範囲から配列を取得
 '   Sub         m2sheet         配列をExcelシートのセル範囲にペースト
+'   Function    getRangeMatrix  Excelシートのセル範囲からRangeオブジェクトの配列を取得
 '   Function    getTextFile     テキストファイルの配列読み込み
 '   Function    getURLText      URLで指定されたテキストの配列読み込み
 '   Function    urlEncode       URLエンコード
 '   Function    urlDecode       URLデコード
 '*********************************************************************************
 
-' Excelシートのセル範囲から配列を取得
+' Excelシートのセル範囲から配列を取得（値のみ）
 ' vec = True：1次元配列化
 ' vec = Fale：2次元配列（デフォルト）
 ' LBound = 0 の配列となる
-Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
+Function sheet2m(ByRef r As Object, Optional ByVal vec As Boolean = False) As Variant
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         If r.cells.count = 1 Then
             sheet2m = makeM(1, 1, r.value)
@@ -32,7 +33,7 @@ End Function
 
 ' 配列をExcelシートのセル範囲にペースト（左上のセルを指定）
 ' vertical = True：1次元配列を縦にペーストする
-Sub m2sheet(ByRef matrix As Variant, ByVal r As Object, Optional ByVal vertical As Boolean = False)
+Sub m2sheet(ByRef matrix As Variant, ByRef r As Object, Optional ByVal vertical As Boolean = False)
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Select Case Dimension(matrix)
         Case 0:
@@ -48,6 +49,22 @@ Sub m2sheet(ByRef matrix As Variant, ByVal r As Object, Optional ByVal vertical 
         End Select
     End If
 End Sub
+
+' Excelシートのセル範囲からRangeオブジェクトの配列を取得
+Function getRangeMatrix(ByRef r As Object) As Variant
+    If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
+        Dim i As Long, j As Long, ret As Variant
+        With r
+            ret = makeM(.rows.count, .Columns.count)
+            For i = 0 To rowSize(ret) - 1 Step 1
+                For j = 0 To colSize(ret) - 1 Step 1
+                    Set ret(i, j) = .cells(i + 1, j + 1)
+                Next j
+            Next i
+        End With
+    End If
+    swapVariant getRangeMatrix, ret
+End Function
 
 ' テキストファイルの配列読み込み
 ' Charsetはshift-jisは明示的に指定しないとダメ
