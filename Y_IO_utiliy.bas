@@ -9,6 +9,7 @@ Option Explicit
 '   Function    sheet2m         Excelシートのセル範囲から配列を取得
 '   Sub         m2sheet         配列をExcelシートのセル範囲にペースト
 '   Function    getRangeMatrix  Excelシートのセル範囲からRangeオブジェクトの配列を取得
+'   Function    getInterior     オブジェクトのInteriorプロパティを取得
 '   Function    getTextFile     テキストファイルの配列読み込み
 '   Function    getURLText      URLで指定されたテキストの配列読み込み
 '   Function    urlEncode       URLエンコード
@@ -19,7 +20,7 @@ Option Explicit
 ' vec = True：1次元配列化
 ' vec = Fale：2次元配列（デフォルト）
 ' LBound = 0 の配列となる
-Function sheet2m(ByRef r As Object, Optional ByVal vec As Boolean = False) As Variant
+Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         If r.cells.count = 1 Then
             sheet2m = makeM(1, 1, r.value)
@@ -33,7 +34,9 @@ End Function
 
 ' 配列をExcelシートのセル範囲にペースト（左上のセルを指定）
 ' vertical = True：1次元配列を縦にペーストする
-Sub m2sheet(ByRef matrix As Variant, ByRef r As Object, Optional ByVal vertical As Boolean = False)
+Public Sub m2sheet(ByRef matrix As Variant, _
+                   ByVal r As Object, _
+                   Optional ByVal vertical As Boolean = False)
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Select Case Dimension(matrix)
         Case 0:
@@ -51,7 +54,7 @@ Sub m2sheet(ByRef matrix As Variant, ByRef r As Object, Optional ByVal vertical 
 End Sub
 
 ' Excelシートのセル範囲からRangeオブジェクトの配列を取得
-Function getRangeMatrix(ByRef r As Object) As Variant
+Public Function getRangeMatrix(ByVal r As Object) As Variant
     If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Dim i As Long, j As Long, ret As Variant
         With r
@@ -66,11 +69,19 @@ Function getRangeMatrix(ByRef r As Object) As Variant
     swapVariant getRangeMatrix, ret
 End Function
 
+' オブジェクトのInteriorプロパティを取得
+Public Function getInterior(ByRef Ob As Variant, ByRef dummuy As Variant) As Variant
+    Set getInterior = Ob.Interior
+End Function
+    Public Function p_getInterior(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
+        p_getInterior = make_funPointer(AddressOf getInterior, firstParam, secondParam)
+    End Function
+
 ' テキストファイルの配列読み込み
 ' Charsetはshift-jisは明示的に指定しないとダメ
-Function getTextFile(ByVal fileName As String, _
-                     Optional ByVal line_end As String = vbCrLf, _
-                     Optional ByVal Charset As String = "_autodetect_all") As Variant
+Public Function getTextFile(ByVal fileName As String, _
+                            Optional ByVal line_end As String = vbCrLf, _
+                            Optional ByVal Charset As String = "_autodetect_all") As Variant
     Dim ado As Object
     Set ado = CreateObject("ADODB.Stream")
     On Error GoTo closeAdoStream
@@ -91,9 +102,9 @@ closeAdoStream:
 End Function
 
 ' URLで指定されたテキストの配列読み込み
-Function getURLText(ByVal url As String, _
-                     Optional ByVal line_end As String = vbCrLf, _
-                     Optional ByVal Charset As String = "_autodetect_all") As Variant
+Public Function getURLText(ByVal url As String, _
+                           Optional ByVal line_end As String = vbCrLf, _
+                           Optional ByVal Charset As String = "_autodetect_all") As Variant
     Dim http As Object
     Set http = CreateObject("MSXML2.XMLHTTP")
     On Error GoTo closeObjects
@@ -118,7 +129,7 @@ closeObjects:
 End Function
 
 ' URLエンコード（参考実装）
-Function urlEncode(ByVal s As String) As String
+Public Function urlEncode(ByVal s As String) As String
     Dim ado As Object
     Dim tmp As Variant
     tmp = mapF(p_mid(s), zip(iota(1, Len(s)), repeat(1, Len(s))))
@@ -130,7 +141,7 @@ Function urlEncode(ByVal s As String) As String
 End Function
 
 ' URLデコード（参考実装）
-Function urlDecode(ByVal s As String) As String
+Public Function urlDecode(ByVal s As String) As String
     If s Like "*%??%??%??*" Then
         Dim begin As Long, theNext As Long
         begin = 1
