@@ -24,12 +24,15 @@ Option Explicit
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
 '   Function        select_zip      Select文を発行して結果をZIP配列としてメンバに格納する
+'   Function        exec            insert文やdelete文を実行する
 '   Function        rowSize         テーブルのレコード数
 '   Function        colSize         テーブルのカラム数
 '   Function        get_data        Select したテーブルデータのコピーを返す
 '   Function        move_data       Select したテーブルデータをmoveして返す
 '   Function        SQLDrivers      インストールされているODBCドライバ配列を返す
 '   Function        excel_expr      特定のExcelブックに接続するための接続文字列
+'   Function        mdb_expr        accessdbの接続文字列
+'   Function        sqlServer_expr  SQL Serverの接続文字列
 '*********************************************************************************
 
 Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
@@ -149,6 +152,18 @@ Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As
     Set select_zip = Me
 End Function
 
+' insert文やdelete文を実行する
+Public Function exec(ByRef sqlExpr As String) As vb_ODBC
+    laptime_ = GetTickCount()
+    If IsArray(sqlExpr) Then
+        Call execODBC(myNo_, sqlExpr)
+    Else
+        Call execODBC(myNo_, VBA.Array(sqlExpr))
+    End If
+    laptime_ = GetTickCount() - laptime_
+    Set exec = Me
+End Function
+
 ' テーブルのレコード数
 Public Function rowSize() As Long
     rowSize = Haskell_2_stdFun.rowSize(mydata_)
@@ -202,8 +217,34 @@ End Function
 'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)}    DBA = R
 '   SELECT * FROM [Sheet1$A1:D10]
 '----------------------------------------------------
-'Microsoft Access Driver (*.mdb,*.accdb)
+'Microsoft Access Driver (*.mdb, *.accdb)
 'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)
 'Oracle in OraCleien11g_home1
 'SQL Server Native Client 10.0
 '----------------------------------------------------
+'select * from all_tables
+'select * from user_views
+
+' accessdbの接続文字列
+Public Function mdb_expr(ByVal dbName As String) As String
+    Dim drivers As Variant
+    Dim i As Variant
+    mdb_expr = "DBA=R; Driver={Microsoft Access Driver (*.mdb, *.accdb)}; DBQ="
+    mdb_expr = mdb_expr & dbName
+    'select * from MSysNameMap
+End Function
+
+' SQL Serverの接続文字列
+Public Function sqlServer_expr(ByVal dbName As String, _
+                               ByVal uid As String, _
+                               Optional ByVal pwd As String = "") As String
+    Dim drivers As Variant
+    Dim i As Variant
+    sqlServer_expr = "Trusted_Connection=YES; Driver={SQL Server Native Client 11.0};"
+    sqlServer_expr = sqlServer_expr & " Server=" & dbName & ";"
+    sqlServer_expr = sqlServer_expr & " UID=" & uid
+    If 0 < Len(pwd) Then
+        sqlServer_expr = sqlServer_expr & "; PWD=" & pwd
+    End If
+    ' select * from sysobjects where xtype = 'U'
+End Function
