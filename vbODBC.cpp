@@ -32,7 +32,7 @@ namespace   {
     using pODBCStmt = std::unique_ptr<odbc_set>;
     std::vector<pODBCStmt>                  vODBCStmt;
 
-    tstring getTypeStr(SQLSMALLINT);
+    tstring getTypeStr(SQLSMALLINT, SQLULEN);
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
     auto selectODBC_result(__int32, VARIANT*, std::vector<SQLSMALLINT>&, __int32)
         ->odbc_raii_select::result_type;
@@ -190,7 +190,7 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
         return ret;
     }
     if ( nresultcols == 0 )         return ret;
-    SAFEARRAYBOUND rgb[2] = { { nresultcols, 0 },  { 2, 0 } };
+    SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(nresultcols), 0 },  { 2, 0 } };
     SAFEARRAY* pArray = ::SafeArrayCreate(VT_VARIANT, 2, rgb);
     auto const elemsize = ::SafeArrayGetElemsize(pArray);
     char* it = nullptr;
@@ -215,7 +215,7 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
             VARIANT elem;
             ::VariantInit(&elem);
             elem.vt = VT_BSTR;
-            tstring const str = getTypeStr(coltype[i]);
+            tstring const str = getTypeStr(coltype[i], collen[i]);
             TCHAR const* p = str.empty() ? 0 : &str[0];
             elem.bstrVal = SysAllocString(p);
             ::VariantCopy(reinterpret_cast<VARIANT*>(it + (nresultcols + i) * elemsize), &elem);
@@ -261,12 +261,13 @@ __int32 __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
 }
 
 namespace   {
-    tstring getTypeStr(SQLSMALLINT type)
+    tstring getTypeStr(SQLSMALLINT type, SQLULEN len)
     {
         tstring ret;
         switch (type)
         {
-        case SQL_CHAR:              ret = tstring(_T("CHAR"));          break;
+        case SQL_CHAR:              ret = tstring(_T("CHAR(")) + std::to_wstring(len)+ _T(')');
+                                    break;
         case SQL_NUMERIC:           ret = tstring(_T("NUMERIC"));       break;
         case SQL_DECIMAL:           ret = tstring(_T("DECIMAL"));       break;
         case SQL_INTEGER:           ret = tstring(_T("INTEGER"));       break;
@@ -274,12 +275,14 @@ namespace   {
         case SQL_FLOAT:             ret = tstring(_T("FLOAT"));         break;
         case SQL_REAL:              ret = tstring(_T("REAL"));          break;
         case SQL_DOUBLE:            ret = tstring(_T("DOUBLE"));        break;
-        case SQL_VARCHAR:           ret = tstring(_T("VARCHAR"));       break;
+        case SQL_VARCHAR:           ret = tstring(_T("VARCHAR(")) + std::to_wstring(len)+ _T(')');
+                                    break;
         case SQL_TYPE_DATE:         ret = tstring(_T("TYPE_DATE"));     break;
         case SQL_TYPE_TIME:         ret = tstring(_T("TYPE_TIME"));     break;
         case SQL_TYPE_TIMESTAMP:    ret = tstring(_T("TYPE_TIMESTAMP"));break;
         case SQL_WLONGVARCHAR:      ret = tstring(_T("WLONGVARCHAR"));  break;
-        case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR"));      break;
+        case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR(")) + std::to_wstring(len)+ _T(')');
+                                    break;
         case SQL_WCHAR:             ret = tstring(_T("WCHAR"));         break;
         case SQL_BIT:               ret = tstring(_T("BIT"));           break;
         case SQL_TINYINT:           ret = tstring(_T("TINYINT"));       break;
@@ -287,7 +290,8 @@ namespace   {
         case SQL_LONGVARBINARY:     ret = tstring(_T("LONGVARBINARY")); break;
         case SQL_VARBINARY:         ret = tstring(_T("VARBINARY"));     break;
         case SQL_BINARY:            ret = tstring(_T("BINARY"));        break;
-        case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR"));   break;
+        case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR(")) + std::to_wstring(len)+ _T(')');
+                                    break;
         default:                    ret = tstring(_T("?"));
         }
         return ret;
