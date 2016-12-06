@@ -153,7 +153,7 @@ Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As
 End Function
 
 ' insert文やdelete文を実行する
-Public Function exec(ByRef sqlExpr As String) As vb_ODBC
+Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     laptime_ = GetTickCount()
     If IsArray(sqlExpr) Then
         Call execODBC(myNo_, sqlExpr)
