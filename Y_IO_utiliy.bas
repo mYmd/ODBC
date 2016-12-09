@@ -14,6 +14,7 @@ Option Explicit
 '   Function    getURLText      URLで指定されたテキストの配列読み込み
 '   Function    urlEncode       URLエンコード
 '   Function    urlDecode       URLデコード
+'   Sub         m2Clip          配列（2次元以下）をクリップボードに転送する
 '*********************************************************************************
 
 ' Excelシートのセル範囲から配列を取得（値のみ）
@@ -65,8 +66,8 @@ Public Function getRangeMatrix(ByVal r As Object) As Variant
                 Next j
             Next i
         End With
-    End If
     swapVariant getRangeMatrix, ret
+    End If
 End Function
 
 ' オブジェクトのInteriorプロパティを取得
@@ -224,3 +225,28 @@ End Function
             .Close
         End With
     End Function
+
+' 配列（2次元以下）をクリップボードに転送する
+Public Sub m2Clip(ByRef data As Variant)
+    Dim s As String
+    Select Case Dimension(data)
+    Case 0
+        If IsNumeric(data) Or VarType(data) = vbString Then
+            s = data
+        End If
+    Case 1
+        s = foldl1(p_str_cat(p_str_cat(, vbTab)), data) & vbCrLf
+    Case 2
+        Dim tmp As Variant
+        tmp = foldl1(p_str_cat(p_str_cat(, vbTab)), data, 2)
+        s = foldl1(p_str_cat(p_str_cat(, vbCrLf)), tmp) & vbCrLf
+    End Select
+    Dim dOb As Object
+    'Set dOb = CreateObject("MSFORMS.DataObject")
+    Set dOb = CreateObject("new:{1C3B4210-F441-11CE-B9EA-00AA006B1A69}")
+    With dOb
+        .SetText s
+        .PutInClipboard
+    End With
+    Set dOb = Nothing
+End Sub
