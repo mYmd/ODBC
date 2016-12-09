@@ -231,9 +231,7 @@ Public Sub m2Clip(ByRef data As Variant)
     Dim s As String
     Select Case Dimension(data)
     Case 0
-        If IsNumeric(data) Or VarType(data) = vbString Then
-            s = data
-        End If
+        s = CStr_(data) & vbCrLf
     Case 1
         s = foldl1(p_str_cat(p_str_cat(, vbTab)), data) & vbCrLf
     Case 2
