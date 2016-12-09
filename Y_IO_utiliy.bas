@@ -233,11 +233,12 @@ Public Sub m2Clip(ByRef data As Variant)
     Case 0
         s = CStr_(data) & vbCrLf
     Case 1
-        s = foldl1(p_str_cat(p_str_cat(, vbTab)), data) & vbCrLf
+        s = Join(mapF(p_CStr, data), vbTab) & vbCrLf
     Case 2
         Dim tmp As Variant
-        tmp = foldl1(p_str_cat(p_str_cat(, vbTab)), data, 2)
-        s = foldl1(p_str_cat(p_str_cat(, vbCrLf)), tmp) & vbCrLf
+        tmp = zipC(mapF(p_CStr, data))
+        tmp = mapF(p_join(, vbTab), tmp)
+        s = Join(tmp, vbCrLf) & vbCrLf
     End Select
     Dim dOb As Object
     'Set dOb = New MSFORMS.DataObject
