@@ -242,7 +242,7 @@ Public Sub m2Clip(ByRef data As Variant)
         s = foldl1(p_str_cat(p_str_cat(, vbCrLf)), tmp) & vbCrLf
     End Select
     Dim dOb As Object
-    'Set dOb = CreateObject("MSFORMS.DataObject")
+    'Set dOb = New MSFORMS.DataObject
     Set dOb = CreateObject("new:{1C3B4210-F441-11CE-B9EA-00AA006B1A69}")
     With dOb
         .SetText s
