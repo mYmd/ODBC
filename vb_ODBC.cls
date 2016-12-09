@@ -235,16 +235,23 @@ Public Function mdb_expr(ByVal dbName As String) As String
 End Function
 
 ' SQL Serverの接続文字列
-Public Function sqlServer_expr(ByVal dbName As String, _
+Public Function sqlServer_expr(ByVal server As String, _
+                               ByVal dbName As String, _
                                ByVal uid As String, _
                                Optional ByVal pwd As String = "") As String
     Dim drivers As Variant
     Dim i As Variant
-    sqlServer_expr = "Trusted_Connection=YES; Driver={SQL Server Native Client 11.0};"
-    sqlServer_expr = sqlServer_expr & " Server=" & dbName & ";"
-    sqlServer_expr = sqlServer_expr & " UID=" & uid
+    sqlServer_expr = "Driver={SQL Server Native Client 11.0};"
+    If 0 = Len(uid) Then
+        sqlServer_expr = sqlServer_expr & " Trusted_Connection=YES;"
+    End If
+    sqlServer_expr = sqlServer_expr & " Server=" & server & "; DATABASE=" & dbName
+    If 0 < Len(uid) Then
+        sqlServer_expr = sqlServer_expr & "; UID=" & uid
+    End If
     If 0 < Len(pwd) Then
         sqlServer_expr = sqlServer_expr & "; PWD=" & pwd
     End If
     ' select * from sysobjects where xtype = 'U'
 End Function
+                              
