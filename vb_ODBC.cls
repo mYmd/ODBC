@@ -259,11 +259,11 @@ End Function
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As String
-    insert_expr = "INSERT INTO " & table_name
+     insert_expr = "INSERT INTO " & table_name
     If Dimension(attr) = 1 Then
         insert_expr = insert_expr & " (" & Join(attr, ",") & ")"
     End If
-    Dim tmp As Variant: tmp = value
+    Dim tmp As Variant: tmp = values
     Dim i As Long
     For i = LBound(tmp) To UBound(tmp) Step 1
         If IsNull(tmp(i)) Then
@@ -272,7 +272,7 @@ Public Function insert_expr(ByVal table_name As String, _
             tmp(i) = "'" & tmp(i) & "'"
         End If
     Next i
-    insert_expr = insert_expr & " VALUES(" & Join(values, ",") & ");"
+    insert_expr = insert_expr & " VALUES(" & Join(tmp, ",") & ");"
 End Function
 
 ' insert文（jag配列または2次元配列）
