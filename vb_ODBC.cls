@@ -254,4 +254,42 @@ Public Function sqlServer_expr(ByVal server As String, _
     End If
     ' select * from sysobjects where xtype = 'U'
 End Function
-                              
+
+' insert文
+Public Function insert_expr(ByVal table_name As String, _
+                                ByRef attr As Variant, _
+                                    ByRef values As Variant) As String
+    insert_expr = "INSERT INTO " & table_name
+    If Dimension(attr) = 1 Then
+        insert_expr = insert_expr & " (" & Join(attr, ",") & ")"
+    End If
+    Dim tmp As Variant: tmp = value
+    Dim i As Long
+    For i = LBound(tmp) To UBound(tmp) Step 1
+        If IsNull(tmp(i)) Then
+            tmp(i) = "null"
+        ElseIf Not IsNumeric(tmp(i)) Then
+            tmp(i) = "'" & tmp(i) & "'"
+        End If
+    Next i
+    insert_expr = insert_expr & " VALUES(" & Join(values, ",") & ");"
+End Function
+
+' insert文（jag配列または2次元配列）
+Public Function insert_expr_(ByVal table_name As String, _
+                                ByRef attr As Variant, _
+                                    ByRef values As Variant) As Variant
+    Dim ret As Variant
+    ret = makeM(Haskell_2_stdFun.rowSize(values))
+    Dim i As Long
+    If Dimension(values) = 1 Then
+        For i = 0 To UBound(ret) Step 1
+            ret(i) = insert_expr(table_name, attr, getNth_b(values, i))
+        Next i
+    Else
+        For i = 0 To UBound(ret) Step 1
+            ret(i) = insert_expr(table_name, attr, selectRow_b(values, i))
+        Next i
+    End If
+    swapVariant insert_expr_, ret
+End Function
