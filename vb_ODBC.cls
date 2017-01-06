@@ -6,7 +6,7 @@ Attribute VB_Name = "vb_ODBC"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
-Attribute VB_Exposed = False
+Attribute VB_Exposed = True
 Option Explicit
 ' vb_ODBC
 'Copyright (c) 2016 mmYYmmdd
