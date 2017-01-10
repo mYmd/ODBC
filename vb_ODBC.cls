@@ -259,20 +259,30 @@ End Function
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As String
-     insert_expr = "INSERT INTO " & table_name
-    If Dimension(attr) = 1 Then
-        insert_expr = insert_expr & " (" & Join(attr, ",") & ")"
-    End If
-    Dim tmp As Variant: tmp = values
+    Dim tmp As Variant:     tmp = values
+    Dim flag As Variant:    flag = makeM(Haskell_2_stdFun.rowSize(tmp))
     Dim i As Long
     For i = LBound(tmp) To UBound(tmp) Step 1
-        If IsNull(tmp(i)) Then
-            tmp(i) = "null"
+        flag(i) = 1
+        If IsNull(tmp(i)) Or IsEmpty(tmp(i)) Or IsObject(tmp(i)) Or IsArray(tmp(i)) Then
+            flag(i) = 0
         ElseIf Not IsNumeric(tmp(i)) Then
-            tmp(i) = "'" & tmp(i) & "'"
+            If 0 < Len(tmp(i)) Then
+                tmp(i) = "'" & tmp(i) & "'"
+            Else
+                flag(i) = 0
+            End If
         End If
     Next i
-    insert_expr = insert_expr & " VALUES(" & Join(tmp, ",") & ");"
+    insert_expr = "INSERT INTO " & table_name
+    If Dimension(attr) = 1 Then
+        insert_expr = insert_expr & " (" & _
+                    Join(filterR(attr, flag), ",") & _
+                ")"
+    End If
+    insert_expr = insert_expr & " VALUES(" & _
+                Join(filterR(tmp, flag), ",") & _
+            ");"
 End Function
 
 ' insert文（jag配列または2次元配列）
