@@ -32,7 +32,7 @@ namespace   {
     using pODBCStmt = std::unique_ptr<odbc_set>;
     std::vector<pODBCStmt>                  vODBCStmt;
 
-    tstring getTypeStr(SQLSMALLINT, SQLULEN);
+    tstring getTypeStr(SQLSMALLINT);
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
     auto selectODBC_result(__int32, VARIANT*, std::vector<SQLSMALLINT>&, __int32)
         ->odbc_raii_select::result_type;
@@ -190,7 +190,7 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
         return ret;
     }
     if ( nresultcols == 0 )         return ret;
-    SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(nresultcols), 0 },  { 2, 0 } };
+    SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(nresultcols), 0 },  { 4, 0 } };
     SAFEARRAY* pArray = ::SafeArrayCreate(VT_VARIANT, 2, rgb);
     auto const elemsize = ::SafeArrayGetElemsize(pArray);
     char* it = nullptr;
@@ -203,24 +203,21 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
     for ( SQLSMALLINT i = 0; i < nresultcols; ++i )
     {
         {
-            VARIANT elem;
-            ::VariantInit(&elem);
+            VARIANT& elem = *reinterpret_cast<VARIANT*>(it + i * elemsize);
             elem.vt = VT_BSTR;
-            TCHAR const* p = colname[i].data();
-            elem.bstrVal = SysAllocString(p);
-            ::VariantCopy(reinterpret_cast<VARIANT*>(it + i * elemsize), &elem);
-            ::VariantClear(&elem);
+            elem.bstrVal = SysAllocString(colname[i].data());
         }
         {
-            VARIANT elem;
-            ::VariantInit(&elem);
+            VARIANT& elem = *reinterpret_cast<VARIANT*>(it + (nresultcols + i) * elemsize);
             elem.vt = VT_BSTR;
-            tstring const str = getTypeStr(coltype[i], collen[i]);
+            tstring const str = getTypeStr(coltype[i]);
             TCHAR const* p = str.empty() ? 0 : &str[0];
             elem.bstrVal = SysAllocString(p);
-            ::VariantCopy(reinterpret_cast<VARIANT*>(it + (nresultcols + i) * elemsize), &elem);
-            ::VariantClear(&elem);
         }
+        reinterpret_cast<VARIANT*>(it + (2*nresultcols + i) * elemsize)->vt = VT_I4;
+        reinterpret_cast<VARIANT*>(it + (2*nresultcols + i) * elemsize)->lVal = static_cast<LONG>(collen[i]);
+        reinterpret_cast<VARIANT*>(it + (3*nresultcols + i) * elemsize)->vt = VT_I4;
+        reinterpret_cast<VARIANT*>(it + (3*nresultcols + i) * elemsize)->lVal = scale[i];
     }
     ::SafeArrayUnaccessData(pArray);
     ret.vt = VT_ARRAY | VT_VARIANT;
@@ -228,12 +225,14 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
     return ret;
 }
 
-__int32 __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
+VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
 {
-    if ( myNo < 0 || vODBCStmt.size() <= myNo )         return 0;
-    if ( !SQLs ||  0 == (VT_ARRAY & SQLs->vt ) )        return 0;
+    VARIANT ret;
+    ::VariantInit(&ret);
+    if ( myNo < 0 || vODBCStmt.size() <= myNo )         return ret;
+    if ( !SQLs ||  0 == (VT_ARRAY & SQLs->vt ) )        return ret;
     SAFEARRAY* pArray = ( 0 == (VT_BYREF & SQLs->vt) )?  (SQLs->parray): (*SQLs->pparray);
-    if ( !pArray || 1 != ::SafeArrayGetDim(pArray) )    return 0;
+    if ( !pArray || 1 != ::SafeArrayGetDim(pArray) )    return ret;
     SAFEARRAYBOUND bounds = {1,0};   //要素数、LBound
     {
         ::SafeArrayGetLBound(pArray, 1, &bounds.lLbound);
@@ -241,11 +240,11 @@ __int32 __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         ::SafeArrayGetUBound(pArray, 1, &ub);
         bounds.cElements = 1 + ub - bounds.lLbound;
     }
-    __int32 count = 0;
     odbc_raii_select    odbcSelect;
     cursor_colser       c_close(vODBCStmt[myNo]->st);
     VARIANT elem;
     ::VariantInit(&elem);
+    std::vector<LONG> errorNo;
     for ( ULONG i = 0; i < bounds.cElements; ++i )
     {
         LONG index = static_cast<LONG>(i) + bounds.lLbound;
@@ -253,21 +252,37 @@ __int32 __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         if (elem.vt == VT_BSTR && elem.bstrVal )
         {
             auto const rc = odbcSelect.execDirect(tstring(elem.bstrVal), vODBCStmt[myNo]->st);
-            if ( rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO )     ++count;
+            if ( rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO )
+                errorNo.push_back(index);
         }
         ::VariantClear(&elem);
     }
-    return count;
+    if ( errorNo.size() )
+    {
+        SAFEARRAYBOUND rgb = { static_cast<ULONG>(errorNo.size()), 0 };
+        SAFEARRAY* pNo = ::SafeArrayCreate(VT_VARIANT, 1, &rgb);
+        auto const elemsize = ::SafeArrayGetElemsize(pNo);
+        char* it = nullptr;
+        ::SafeArrayAccessData(pNo, reinterpret_cast<void**>(&it));
+        for ( auto i = 0; i < errorNo.size(); ++i )
+        {
+            reinterpret_cast<VARIANT*>(it + i*elemsize)->vt = VT_I4;
+            reinterpret_cast<VARIANT*>(it + i*elemsize)->lVal = errorNo[i];
+        }
+        ::SafeArrayUnaccessData(pNo);
+        ret.vt = VT_ARRAY | VT_VARIANT;
+        ret.parray = pNo;
+    }
+    return ret;
 }
 
 namespace   {
-    tstring getTypeStr(SQLSMALLINT type, SQLULEN len)
+    tstring getTypeStr(SQLSMALLINT type)
     {
         tstring ret;
         switch (type)
         {
-        case SQL_CHAR:              ret = tstring(_T("CHAR(")) + std::to_wstring(len)+ _T(')');
-                                    break;
+        case SQL_CHAR:              ret = tstring(_T("CHAR"));          break;
         case SQL_NUMERIC:           ret = tstring(_T("NUMERIC"));       break;
         case SQL_DECIMAL:           ret = tstring(_T("DECIMAL"));       break;
         case SQL_INTEGER:           ret = tstring(_T("INTEGER"));       break;
@@ -275,14 +290,12 @@ namespace   {
         case SQL_FLOAT:             ret = tstring(_T("FLOAT"));         break;
         case SQL_REAL:              ret = tstring(_T("REAL"));          break;
         case SQL_DOUBLE:            ret = tstring(_T("DOUBLE"));        break;
-        case SQL_VARCHAR:           ret = tstring(_T("VARCHAR(")) + std::to_wstring(len)+ _T(')');
-                                    break;
+        case SQL_VARCHAR:           ret = tstring(_T("VARCHAR"));       break;
         case SQL_TYPE_DATE:         ret = tstring(_T("TYPE_DATE"));     break;
         case SQL_TYPE_TIME:         ret = tstring(_T("TYPE_TIME"));     break;
         case SQL_TYPE_TIMESTAMP:    ret = tstring(_T("TYPE_TIMESTAMP"));break;
         case SQL_WLONGVARCHAR:      ret = tstring(_T("WLONGVARCHAR"));  break;
-        case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR(")) + std::to_wstring(len)+ _T(')');
-                                    break;
+        case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR"));      break;
         case SQL_WCHAR:             ret = tstring(_T("WCHAR"));         break;
         case SQL_BIT:               ret = tstring(_T("BIT"));           break;
         case SQL_TINYINT:           ret = tstring(_T("TINYINT"));       break;
@@ -290,8 +303,7 @@ namespace   {
         case SQL_LONGVARBINARY:     ret = tstring(_T("LONGVARBINARY")); break;
         case SQL_VARBINARY:         ret = tstring(_T("VARBINARY"));     break;
         case SQL_BINARY:            ret = tstring(_T("BINARY"));        break;
-        case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR(")) + std::to_wstring(len)+ _T(')');
-                                    break;
+        case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR"));   break;
         default:                    ret = tstring(_T("?"));
         }
         return ret;
