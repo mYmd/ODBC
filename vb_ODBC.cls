@@ -20,6 +20,7 @@ Option Explicit
 '   Property Get    last_connected  最後に成功した接続文字列の取得
 '   Property Get    last_SQL        最後に発行されたSQL文字列の取得
 '   Property Get    last_elapsed    最後に発行されたSELECT文でかかった時間 (ミリ秒)
+'   Property Get    last_execError  最後に発行されたexec文のエラー行
 '   Function        read_header     Select文を発行してヘッダ（カラム）情報をメンバに格納する
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
@@ -55,7 +56,7 @@ Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                                 (ByVal n As Long, ByRef sql As Variant) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
-                        (ByVal n As Long, ByRef SQLs As Variant) As Long
+                        (ByVal n As Long, ByRef SQLs As Variant) As Variant
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                                 ByVal buf As String, _
@@ -64,12 +65,13 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
-Private connectionString   As String    ' 接続文字列
-Private mySQL_       As String
-Private myheader_    As Variant
-Private mydata_      As Variant
-Private myNo_        As Long
-Private laptime_     As Long
+Private connectionString    As String    ' 接続文字列
+Private mySQL_              As String
+Private myheader_           As Variant
+Private mydata_             As Variant
+Private myNo_               As Long
+Private laptime_            As Long
+Private myErrorNo_          As Variant
 
 Private Sub Class_Initialize()
     myNo_ = -1
@@ -156,9 +158,9 @@ End Function
 Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     laptime_ = GetTickCount()
     If IsArray(sqlExpr) Then
-        Call execODBC(myNo_, sqlExpr)
+        myErrorNo_ = execODBC(myNo_, sqlExpr)
     Else
-        Call execODBC(myNo_, VBA.Array(sqlExpr))
+        myErrorNo_ = execODBC(myNo_, VBA.Array(sqlExpr))
     End If
     laptime_ = GetTickCount() - laptime_
     Set exec = Me
