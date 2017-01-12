@@ -116,6 +116,11 @@ Public Property Get last_elapsed() As Long
     last_elapsed = laptime_
 End Property
 
+'最後に発行されたexec文のエラー行
+Public Property Get last_execError() As Variant
+    last_execError = myErrorNo_
+End Property
+
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
