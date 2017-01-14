@@ -69,9 +69,9 @@ Private connectionString    As String    ' 接続文字列
 Private mySQL_              As String
 Private myheader_           As Variant
 Private mydata_             As Variant
+Private myErrorNo_          As Variant
 Private myNo_               As Long
 Private laptime_            As Long
-Private myErrorNo_          As Variant
 
 Private Sub Class_Initialize()
     myNo_ = -1
