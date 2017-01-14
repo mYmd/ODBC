@@ -55,7 +55,7 @@ Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC.dll" ( _
 Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                                 (ByVal n As Long, ByRef sql As Variant) As Variant
 
-Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
+Private Declare PtrSafe Function execODBC Lib "vbODBC" _
                         (ByVal n As Long, ByRef SQLs As Variant) As Variant
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
