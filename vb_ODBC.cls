@@ -273,7 +273,7 @@ Public Function insert_expr(ByVal table_name As String, _
         flag(i) = 1
         If IsNull(tmp(i)) Or IsEmpty(tmp(i)) Or IsObject(tmp(i)) Or IsArray(tmp(i)) Then
             flag(i) = 0
-        ElseIf Not IsNumeric(tmp(i)) Then
+        ElseIf Not IsNumeric(tmp(i)) Or VarType(tmp(i)) = vbString Then
             If 0 < Len(tmp(i)) Then
                 tmp(i) = "'" & tmp(i) & "'"
             Else
