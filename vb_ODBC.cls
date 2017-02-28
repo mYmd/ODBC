@@ -275,7 +275,7 @@ Public Function insert_expr(ByVal table_name As String, _
             flag(i) = 0
         ElseIf Not IsNumeric(tmp(i)) Or VarType(tmp(i)) = vbString Then
             If 0 < Len(tmp(i)) Then
-                tmp(i) = "'" & tmp(i) & "'"
+                tmp(i) = "'" & Replace(tmp(i), "'", "''") & "'"
             Else
                 flag(i) = 0
             End If
