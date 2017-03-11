@@ -11,4 +11,4 @@ EXPORTS
 	selectODBC_zip = selectODBC_zip
 	columnAttributes = columnAttributes
 	execODBC = execODBC
-	
+	primaryKeys_1 = primaryKeys_1	
