@@ -276,6 +276,76 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return ret;
 }
 
+// https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
+// https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
+VARIANT __stdcall primaryKeys_1(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
+{
+    VARIANT ret;
+    ::VariantInit(&ret);
+    BSTR schema_name_b = getBSTR(schemaName);
+    BSTR table_name_b  = getBSTR(tableName);
+    if (!schema_name_b || !table_name_b || myNo < 0 || vODBCStmt.size() <= myNo)
+        return ret;
+    auto& st = vODBCStmt[myNo]->st;
+    cursor_colser   c_closer(st);
+    {
+        tstring schema_name_t(schema_name_b);
+        tstring table_name_t(table_name_b);
+        SQLTCHAR* schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
+        SQLTCHAR* table_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
+        auto primaryKeys_expr = [=](HSTMT x) {
+                    return ::SQLPrimaryKeys(x,  NULL,       SQL_NTS,
+                                            schema_name,    SQL_NTS,
+                                            table_name,     SQL_NTS);
+        };
+        if ( SQL_SUCCESS != st.invoke(primaryKeys_expr) )
+            return ret;
+    }
+    SQLCHAR  rgbValue[20];
+    SQLLEN   pcbValue;
+    {
+        auto p_rgbValue = static_cast<SQLPOINTER>(rgbValue);
+        auto p_pcbValue = &pcbValue;
+        auto SQLBindCol_expr = [=](HSTMT x) {
+                    return ::SQLBindCol(x,
+                                        5,      //KEY_SEQ
+                                        SQL_C_CHAR,
+                                        p_rgbValue, 20,
+                                        p_pcbValue);
+        };
+        if (SQL_SUCCESS != st.invoke(SQLBindCol_expr))
+            return ret;
+    }
+    auto SQLFetch_expr = [=](HSTMT x) { return ::SQLFetch(x); };
+    std::vector<VARIANT> vec;
+    while (true)
+    {
+        if (SQL_SUCCESS != st.invoke(SQLFetch_expr))
+            break;
+        TCHAR tcharBuffer[20];
+        int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, 20);
+        tstring const str(tcharBuffer);
+        TCHAR const* p = str.empty() ? 0 : &str[0];
+        vec.push_back(makeVariantFromSQLType(SQL_SMALLINT, p));
+    }
+    SAFEARRAYBOUND rgb = { static_cast<ULONG>(vec.size()), 0 };
+    SAFEARRAY* pArray = ::SafeArrayCreate(VT_VARIANT, 1, &rgb);
+    char* it = nullptr;
+    ::SafeArrayAccessData(pArray, reinterpret_cast<void**>(&it));
+    if (!it)
+    {
+        ::SafeArrayUnaccessData(pArray);
+        return ret;
+    }
+    auto const elemsize = ::SafeArrayGetElemsize(pArray);
+    for (std::size_t i = 0; i < vec.size(); ++i)
+        std::swap(*reinterpret_cast<VARIANT*>(it + i * elemsize), vec[i]);
+    ::SafeArrayUnaccessData(pArray);
+    ret.vt = VT_ARRAY | VT_VARIANT;
+    ret.parray = pArray;
+    return ret;
+}
+
 namespace   {
     tstring getTypeStr(SQLSMALLINT type)
     {
