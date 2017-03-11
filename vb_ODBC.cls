@@ -21,6 +21,7 @@ Option Explicit
 '   Property Get    last_SQL        最後に発行されたSQL文字列の取得
 '   Property Get    last_elapsed    最後に発行されたSELECT文でかかった時間 (ミリ秒)
 '   Property Get    last_execError  最後に発行されたexec文のエラー行
+'   Function        primaryKeys     テーブルの primary key 列
 '   Function        read_header     Select文を発行してヘッダ（カラム）情報をメンバに格納する
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
@@ -62,6 +63,11 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                                 ByVal buf As String, _
                                             ByVal cbBufMax As Integer, _
                                         ByRef pcchBufOut As Integer) As Byte
+
+Private Declare PtrSafe Function primaryKeys_1 Lib "vbODBC" ( _
+                                                ByVal n As Long, _
+                                            ByRef schemaName As Variant, _
+                                        ByRef tableName As Variant) As Variant
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
@@ -120,6 +126,14 @@ End Property
 Public Property Get last_execError() As Variant
     last_execError = myErrorNo_
 End Property
+
+'テーブルの primary key 列
+Public Function primaryKeys(ByRef schemaName As Variant, _
+                            ByRef tableName As Variant) As Variant
+    primaryKeys = mapF(p_minus(, 1), _
+                       primaryKeys_1(myNo_, schemaName, tableName) _
+                    )
+End Function
 
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
@@ -244,7 +258,7 @@ End Function
 ' SQL Serverの接続文字列
 Public Function sqlServer_expr(ByVal server As String, _
                                ByVal dbName As String, _
-                               ByVal uid As String, _
+                               Optional ByVal uid As String = "", _
                                Optional ByVal pwd As String = "") As String
     Dim drivers As Variant
     Dim i As Variant
@@ -284,11 +298,11 @@ Public Function insert_expr(ByVal table_name As String, _
     insert_expr = "INSERT INTO " & table_name
     If Dimension(attr) = 1 Then
         insert_expr = insert_expr & " (" & _
-                    Join(filterR(attr, flag), ",") & _
+                    join(filterR(attr, flag), ",") & _
                 ")"
     End If
     insert_expr = insert_expr & " VALUES(" & _
-                Join(filterR(tmp, flag), ",") & _
+                join(filterR(tmp, flag), ",") & _
             ");"
 End Function
 
