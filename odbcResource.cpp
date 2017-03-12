@@ -222,7 +222,7 @@ odbc_raii_select::select(   int                             timeOutSec,
         {
             for ( int j = 0; j < nresultcols; ++j )
             {
-                if ( datastrlen[j] != SQL_NULL_DATA && datastrlen[j] < long(buffer[j].size()) )
+                if ( 0 < datastrlen[j] && datastrlen[j] < long(buffer[j].size()) )
                     buffer[j][datastrlen[j]] = '\0';
                 int mb = ::MultiByteToWideChar( CP_ACP                  ,
                                                 MB_PRECOMPOSED          ,
