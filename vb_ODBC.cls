@@ -21,7 +21,7 @@ Option Explicit
 '   Property Get    last_SQL        最後に発行されたSQL文字列の取得
 '   Property Get    last_elapsed    最後に発行されたSELECT文でかかった時間 (ミリ秒)
 '   Property Get    last_execError  最後に発行されたexec文のエラー行
-'   Function        primaryKeys     テーブルの primary key 列
+'   Function        tableAttribute  テーブルの Attribute
 '   Function        read_header     Select文を発行してヘッダ（カラム）情報をメンバに格納する
 '   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
 '   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
@@ -37,24 +37,26 @@ Option Explicit
 '   Function        sqlServer_expr  SQL Serverの接続文字列
 '*********************************************************************************
 
-Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
+Private Declare PtrSafe Function terminateODBC Lib "vbODBC" (ByVal n As Long) As Long
 
-Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function initODBC Lib "vbODBC" ( _
                                         ByVal n As Long, _
                                     ByRef rawStr As Variant) As Long
 
-Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function selectODBC Lib "vbODBC" ( _
                                     ByVal n As Long, _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC" ( _
                                     ByVal n As Long, _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
-                                (ByVal n As Long, ByRef sql As Variant) As Variant
+Private Declare PtrSafe Function columnAttributes Lib "vbODBC" _
+                                    (ByVal n As Long, _
+                                ByRef sql As Variant, _
+                            ByVal getNullable As Long) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC" _
                         (ByVal n As Long, ByRef SQLs As Variant) As Variant
@@ -127,19 +129,30 @@ Public Property Get last_execError() As Variant
     last_execError = myErrorNo_
 End Property
 
-'テーブルの primary key 列
-Public Function primaryKeys(ByRef schemaName As Variant, _
+' テーブルの Attribute
+' 列名、型名、データ長、精度、属性（1:キー, -1:Nullable, 0:他）
+Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
+    Dim ret As Variant
+    Dim sqlExpr As String
+    sqlExpr = "SELECT * FROM " & _
+                    IIf(0 < Len(schemaName), schemaName & ".", "") & _
+                        tableName
+    ret = columnAttributes(myNo_, sqlExpr, 1)
+    Dim primaryKeys As Variant
     primaryKeys = mapF(p_minus(, 1), _
                        primaryKeys_1(myNo_, schemaName, tableName) _
                     )
+    Call fillCol(ret, 4, place_fill(selectCol(ret, 4), 1, primaryKeys))
+    Call swapVariant(tableAttribute, ret)
+    Exit Function
 End Function
 
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    myheader_ = columnAttributes(myNo_, sqlExpr)
+    myheader_ = columnAttributes(myNo_, sqlExpr, 0)
     laptime_ = GetTickCount() - laptime_
     Set read_header = Me
 End Function
@@ -256,6 +269,7 @@ Public Function mdb_expr(ByVal dbName As String) As String
 End Function
 
 ' SQL Serverの接続文字列
+' ?oo.connect(oo.sqlServer_expr("MASAHIKO-PC\SQLEXPRESS", "sampleDB01", "", ""))
 Public Function sqlServer_expr(ByVal server As String, _
                                ByVal dbName As String, _
                                Optional ByVal uid As String = "", _
