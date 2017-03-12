@@ -155,7 +155,7 @@ VARIANT __stdcall selectODBC_zip(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
     return ret;
 }
 
-VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
+VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL, __int32 getNullable)
 {
     VARIANT ret;
     ::VariantInit(&ret);
@@ -190,7 +190,7 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
         return ret;
     }
     if ( nresultcols == 0 )         return ret;
-    SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(nresultcols), 0 },  { 4, 0 } };
+    SAFEARRAYBOUND rgb[2] = { {static_cast<ULONG>(nresultcols), 0}, {(getNullable? 5U: 4U), 0} };
     SAFEARRAY* pArray = ::SafeArrayCreate(VT_VARIANT, 2, rgb);
     auto const elemsize = ::SafeArrayGetElemsize(pArray);
     char* it = nullptr;
@@ -218,6 +218,11 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
         reinterpret_cast<VARIANT*>(it + (2*nresultcols + i) * elemsize)->lVal = static_cast<LONG>(collen[i]);
         reinterpret_cast<VARIANT*>(it + (3*nresultcols + i) * elemsize)->vt = VT_I4;
         reinterpret_cast<VARIANT*>(it + (3*nresultcols + i) * elemsize)->lVal = scale[i];
+        if ( getNullable )
+        {
+            reinterpret_cast<VARIANT*>(it + (4*nresultcols + i) * elemsize)->vt = VT_I4;
+            reinterpret_cast<VARIANT*>(it + (4*nresultcols + i) * elemsize)->lVal = (nullable[i]? -1: 0);
+        }
     }
     ::SafeArrayUnaccessData(pArray);
     ret.vt = VT_ARRAY | VT_VARIANT;
@@ -320,7 +325,8 @@ VARIANT __stdcall primaryKeys_1(__int32 myNo, VARIANT* schemaName, VARIANT* tabl
     std::vector<VARIANT> vec;
     while (true)
     {
-        if (SQL_SUCCESS != st.invoke(SQLFetch_expr))
+        auto fetch_result = st.invoke(SQLFetch_expr);
+        if ( (SQL_SUCCESS != fetch_result) && (SQL_SUCCESS_WITH_INFO != fetch_result) )
             break;
         TCHAR tcharBuffer[20];
         int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, 20);
