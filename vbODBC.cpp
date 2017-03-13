@@ -300,22 +300,22 @@ VARIANT __stdcall primaryKeys_1(__int32 myNo, VARIANT* schemaName, VARIANT* tabl
         SQLTCHAR* table_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
         auto primaryKeys_expr = [=](HSTMT x) {
                     return ::SQLPrimaryKeys(x,  NULL,       SQL_NTS,
-                                            schema_name,    SQL_NTS,
-                                            table_name,     SQL_NTS);
+                                            schema_name,    schema_name_t.length(),
+                                            table_name,     table_name_t.length());
         };
         if ( SQL_SUCCESS != st.invoke(primaryKeys_expr) )
             return ret;
     }
-    SQLCHAR  rgbValue[20];
+    SQLCHAR  rgbValue[odbc_raii_select::ColumnNameLen];
     SQLLEN   pcbValue;
     {
         auto p_rgbValue = static_cast<SQLPOINTER>(rgbValue);
         auto p_pcbValue = &pcbValue;
         auto SQLBindCol_expr = [=](HSTMT x) {
                     return ::SQLBindCol(x,
-                                        5,      //KEY_SEQ
+                                        4,      //COLUMN_NAME
                                         SQL_C_CHAR,
-                                        p_rgbValue, 20,
+                                        p_rgbValue, odbc_raii_select::ColumnNameLen,
                                         p_pcbValue);
         };
         if (SQL_SUCCESS != st.invoke(SQLBindCol_expr))
@@ -328,11 +328,11 @@ VARIANT __stdcall primaryKeys_1(__int32 myNo, VARIANT* schemaName, VARIANT* tabl
         auto fetch_result = st.invoke(SQLFetch_expr);
         if ( (SQL_SUCCESS != fetch_result) && (SQL_SUCCESS_WITH_INFO != fetch_result) )
             break;
-        TCHAR tcharBuffer[20];
-        int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, 20);
+        TCHAR tcharBuffer[odbc_raii_select::ColumnNameLen];
+        int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, odbc_raii_select::ColumnNameLen);
         tstring const str(tcharBuffer);
         TCHAR const* p = str.empty() ? 0 : &str[0];
-        vec.push_back(makeVariantFromSQLType(SQL_SMALLINT, p));
+        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p));
     }
     SAFEARRAYBOUND rgb = { static_cast<ULONG>(vec.size()), 0 };
     SAFEARRAY* pArray = ::SafeArrayCreate(VT_VARIANT, 1, &rgb);
