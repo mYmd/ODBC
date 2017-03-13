@@ -37,28 +37,28 @@ Option Explicit
 '   Function        sqlServer_expr  SQL Serverの接続文字列
 '*********************************************************************************
 
-Private Declare PtrSafe Function terminateODBC Lib "vbODBC" (ByVal n As Long) As Long
+Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
 
-Private Declare PtrSafe Function initODBC Lib "vbODBC" ( _
+Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
                                         ByVal n As Long, _
                                     ByRef rawStr As Variant) As Long
 
-Private Declare PtrSafe Function selectODBC Lib "vbODBC" ( _
+Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC" ( _
+Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function columnAttributes Lib "vbODBC" _
+Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
                                 ByRef sql As Variant, _
                             ByVal getNullable As Long) As Variant
 
-Private Declare PtrSafe Function execODBC Lib "vbODBC" _
+Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
                         (ByVal n As Long, ByRef SQLs As Variant) As Variant
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
@@ -66,7 +66,7 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal cbBufMax As Integer, _
                                         ByRef pcchBufOut As Integer) As Byte
 
-Private Declare PtrSafe Function primaryKeys_1 Lib "vbODBC" ( _
+Private Declare PtrSafe Function primaryKeys_1 Lib "vbODBC.dll" ( _
                                                 ByVal n As Long, _
                                             ByRef schemaName As Variant, _
                                         ByRef tableName As Variant) As Variant
@@ -140,12 +140,13 @@ Public Function tableAttribute(ByRef schemaName As Variant, _
                         tableName
     ret = columnAttributes(myNo_, sqlExpr, 1)
     Dim primaryKeys As Variant
-    primaryKeys = mapF(p_minus(, 1), _
-                       primaryKeys_1(myNo_, schemaName, tableName) _
-                    )
-    Call fillCol(ret, 4, place_fill(selectCol(ret, 4), 1, primaryKeys))
+    primaryKeys = primaryKeys_1(myNo_, schemaName, tableName)
+    If 0 < sizeof(primaryKeys) Then
+        primaryKeys = product_set(p_equal, selectCol(ret, 0), primaryKeys)
+        primaryKeys = foldl1(p_max, primaryKeys, 2)
+        Call fillCol(ret, 4, zipWith(p_plus, selectCol(ret, 4), primaryKeys))
+    End If
     Call swapVariant(tableAttribute, ret)
-    Exit Function
 End Function
 
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
@@ -269,7 +270,6 @@ Public Function mdb_expr(ByVal dbName As String) As String
 End Function
 
 ' SQL Serverの接続文字列
-' ?oo.connect(oo.sqlServer_expr("MASAHIKO-PC\SQLEXPRESS", "sampleDB01", "", ""))
 Public Function sqlServer_expr(ByVal server As String, _
                                ByVal dbName As String, _
                                Optional ByVal uid As String = "", _
