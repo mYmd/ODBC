@@ -6,15 +6,17 @@ Option Explicit
 '*********************************************************************************
 '   IO関連ユーティリティ
 '*********************************************************************************
-'   Function    sheet2m         Excelシートのセル範囲から配列を取得
-'   Sub         m2sheet         配列をExcelシートのセル範囲にペースト
-'   Function    getRangeMatrix  Excelシートのセル範囲からRangeオブジェクトの配列を取得
-'   Function    getInterior     オブジェクトのInteriorプロパティを取得
-'   Function    getTextFile     テキストファイルの配列読み込み
-'   Function    getURLText      URLで指定されたテキストの配列読み込み
-'   Function    urlEncode       URLエンコード
-'   Function    urlDecode       URLデコード
-'   Sub         m2Clip          配列（2次元以下）をクリップボードに転送する
+'   Function    sheet2m             Excelシートのセル範囲から配列を取得
+'   Sub         m2sheet             配列をExcelシートのセル範囲にペースト
+'   Function    getRangeMatrix      Excelシートのセル範囲からRangeオブジェクトの配列を取得
+'   Function    getInterior         オブジェクトのInteriorプロパティを取得
+'   Function    getTextFile         テキストファイルの配列読み込み
+'   Function    getURLText          URLで指定されたテキストの配列読み込み
+'   Function    urlEncode           URLエンコード
+'   Function    urlDecode           URLデコード
+'   Sub         m2Clip              配列（2次元以下）をクリップボードに転送する
+'   Function    HTMLDocFromText     HTMLテキストからのHTMLDocumentオブジェクト
+'   Function    getTagsFromHTML     HTMLテキストからのタグ抽出
 '*********************************************************************************
 
 ' Excelシートのセル範囲から配列を取得（値のみ）
@@ -22,7 +24,7 @@ Option Explicit
 ' vec = Fale：2次元配列（デフォルト）
 ' LBound = 0 の配列となる
 Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
-    If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
+    If Application.name Like "*Excel*" And TypeName(r) = "Range" Then
         If r.cells.count = 1 Then
             sheet2m = makeM(1, 1, r.value)
         Else
@@ -38,7 +40,7 @@ End Function
 Public Sub m2sheet(ByRef matrix As Variant, _
                    ByVal r As Object, _
                    Optional ByVal vertical As Boolean = False)
-    If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
+    If Application.name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Select Case Dimension(matrix)
         Case 0:
             r.value = matrix
@@ -56,7 +58,7 @@ End Sub
 
 ' Excelシートのセル範囲からRangeオブジェクトの配列を取得
 Public Function getRangeMatrix(ByVal r As Object) As Variant
-    If Application.Name = "Microsoft Excel" And TypeName(r) = "Range" Then
+    If Application.name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Dim i As Long, j As Long, ret As Variant
         With r
             ret = makeM(.rows.count, .Columns.count)
@@ -80,19 +82,30 @@ End Function
 
 ' テキストファイルの配列読み込み
 ' Charsetはshift-jisは明示的に指定しないとダメ
+' head_n : 試し読み先頭行数指定
 Public Function getTextFile(ByVal fileName As String, _
                             Optional ByVal line_end As String = vbCrLf, _
-                            Optional ByVal Charset As String = "_autodetect_all") As Variant
-    Dim ado As Object
-    Set ado = CreateObject("ADODB.Stream")
+                            Optional ByVal Charset As String = "_autodetect_all", _
+                            Optional ByVal head_n As Long = -1) As Variant
+    Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
     On Error GoTo closeAdoStream
+    Dim i As Long
+    Dim lineS As String
     With ado
         .Open
         .Position = 0
         .Type = 2    'ADODB.Stream.adTypeText
         .Charset = Charset
         .LoadFromFile fileName
-        getTextFile = .ReadText
+        If 0 < head_n Then
+            .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+            For i = 1 To head_n
+                lineS = .ReadText(-2)   'adReadLine
+                getTextFile = getTextFile & lineS & line_end
+            Next i
+        Else
+            getTextFile = .ReadText
+        End If
     End With
 closeAdoStream:
     ado.Close
@@ -103,16 +116,18 @@ closeAdoStream:
 End Function
 
 ' URLで指定されたテキストの配列読み込み
+' head_n : 試し読み先頭行数指定
 Public Function getURLText(ByVal url As String, _
                            Optional ByVal line_end As String = vbCrLf, _
-                           Optional ByVal Charset As String = "_autodetect_all") As Variant
-    Dim http As Object
-    Set http = CreateObject("MSXML2.XMLHTTP")
+                           Optional ByVal Charset As String = "_autodetect_all", _
+                           Optional ByVal head_n As Long = -1) As Variant
+    Dim http As Object: Set http = CreateObject("MSXML2.XMLHTTP")
     On Error GoTo closeObjects
     http.Open "GET", url, False
     http.Send
-    Dim ado As Object
-    Set ado = CreateObject("ADODB.Stream")
+    Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
+    Dim i As Long
+    Dim lineS As String
     With ado
         .Open
         .Position = 0
@@ -121,12 +136,23 @@ Public Function getURLText(ByVal url As String, _
         .Position = 0
         .Type = 2       'ADODB.Stream.adTypeText
         .Charset = Charset
-        getURLText = Split(.ReadText, line_end)
+        If 0 < head_n Then
+            .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+            For i = 1 To head_n
+                lineS = .ReadText(-2)   'adReadLine
+                getURLText = getURLText & lineS & line_end
+            Next i
+        Else
+            getURLText = .ReadText
+        End If
     End With
 closeObjects:
     If Not ado Is Nothing Then ado.Close
     Set ado = Nothing
     Set http = Nothing
+    If 0 < Len(line_end) And VarType(getURLText) = vbString Then
+        getURLText = Split(getURLText, line_end)
+    End If
 End Function
 
 ' URLエンコード（参考実装）
@@ -138,7 +164,7 @@ Public Function urlEncode(ByVal s As String) As String
     ado.Charset = "UTF-8"
     tmp = mapF(p_urlEncode_1(, ado), tmp)
     Set ado = Nothing
-    urlEncode = Join(tmp, "")
+    urlEncode = join(tmp, "")
 End Function
 
 ' URLデコード（参考実装）
@@ -177,7 +203,7 @@ End Function
         If 0 < Len(s) Then
             If left(s, 1) Like "[ｦ-ﾟ]" Then
                 isKanaKanji = True
-            ElseIf Asc(left(s, 1)) < 0 Then
+            ElseIf asc(left(s, 1)) < 0 Then
                 isKanaKanji = True
             End If
         End If
@@ -233,12 +259,12 @@ Public Sub m2Clip(ByRef data As Variant)
     Case 0
         s = CStr_(data) & vbCrLf
     Case 1
-        s = Join(mapF(p_CStr, data), vbTab) & vbCrLf
+        s = join(mapF(p_CStr, data), vbTab) & vbCrLf
     Case 2
         Dim tmp As Variant
         tmp = zipC(mapF(p_CStr, data))
         tmp = mapF(p_join(, vbTab), tmp)
-        s = Join(tmp, vbCrLf) & vbCrLf
+        s = join(tmp, vbCrLf) & vbCrLf
     End Select
     Dim dOb As Object
     'Set dOb = New MSFORMS.DataObject
@@ -249,3 +275,23 @@ Public Sub m2Clip(ByRef data As Variant)
     End With
     Set dOb = Nothing
 End Sub
+
+' HTMLテキストからのHTMLDocumentオブジェクト
+Public Function HTMLDocFromText(ByVal htmlText As String) As Object    'As HtmlDocument
+    Set HTMLDocFromText = CreateObject("htmlfile") 'New MSHTML.HTMLDocument
+    HTMLDocFromText.Write htmlText
+End Function
+
+' HTMLテキストからのタグ抽出
+Public Function getTagsFromHTML(ByVal htmlText As String, ByRef tag As Variant) As Variant
+    Dim doc As Object   'As HTMLDocument
+    Set doc = HTMLDocFromText(htmlText)
+    Dim z As Variant
+    Dim ret As Variant: ret = VBA.Array()
+    'Debug.Print doc.all.tags(tag).length
+    For Each z In doc.all.tags(tag)
+        push_back ret, z.innerText      'outerHTML
+    Next z
+    Set doc = Nothing
+    swapVariant ret, getTagsFromHTML
+End Function
