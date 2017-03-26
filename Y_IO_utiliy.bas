@@ -11,6 +11,7 @@ Option Explicit
 '   Function    getRangeMatrix      Excelシートのセル範囲からRangeオブジェクトの配列を取得
 '   Function    getInterior         オブジェクトのInteriorプロパティを取得
 '   Function    getTextFile         テキストファイルの配列読み込み
+'   Sub         writeTextFile       配列のテキストファイル書き込み
 '   Function    getURLText          URLで指定されたテキストの配列読み込み
 '   Function    urlEncode           URLエンコード
 '   Function    urlDecode           URLデコード
@@ -114,6 +115,31 @@ closeAdoStream:
         getTextFile = Split(getTextFile, line_end)
     End If
 End Function
+
+' 配列のテキストファイル書き込み
+Public Sub writeTextFile(ByRef data As Variant, _
+                        ByVal fileName As String, _
+                        ByVal Charset As String, _
+                        Optional ByVal line_end As String = vbCrLf)
+    Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
+    On Error GoTo closeAdoStream
+    Dim i As Long
+    Dim lineS As String
+    With ado
+        .Open
+        .Position = 0
+        .Type = 2    'ADODB.Stream.adTypeText
+        .Charset = Charset
+        .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+        For i = LBound(data) To UBound(data) Step 1
+            .WriteText data(i), 1       ' adWriteLine
+        Next i
+        .SaveToFile fileName, 2 ' adSaveCreateOverWrite
+    End With
+closeAdoStream:
+    ado.Close
+    Set ado = Nothing
+End Sub
 
 ' URLで指定されたテキストの配列読み込み
 ' head_n : 試し読み先頭行数指定
