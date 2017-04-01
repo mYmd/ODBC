@@ -8,7 +8,8 @@ EXPORTS
 	terminateODBC = terminateODBC
 	initODBC = initODBC
 	selectODBC = selectODBC
-	selectODBC_zip = selectODBC_zip
+	selectODBC_rowWise = selectODBC_rowWise
+	selectODBC_columnWise = selectODBC_columnWise
 	columnAttributes = columnAttributes
 	execODBC = execODBC
 	primaryKeys_1 = primaryKeys_1	
