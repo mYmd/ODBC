@@ -14,27 +14,28 @@ Option Explicit
 '*********************************************************************************
 ' ODBC接続
 ' --------------------------------------------------------------------------------
-'   Function        connect         接続文字列を発行してデータベースに接続
-'   Sub             disconnect      接続断
-'   Sub             clear           ヘッダ（カラム）データとテーブルデータを消去
-'   Property Get    last_connected  最後に成功した接続文字列の取得
-'   Property Get    last_SQL        最後に発行されたSQL文字列の取得
-'   Property Get    last_elapsed    最後に発行されたSELECT文でかかった時間 (ミリ秒)
-'   Property Get    last_execError  最後に発行されたexec文のエラー行
-'   Function        tableAttribute  テーブルの Attribute
-'   Function        read_header     Select文を発行してヘッダ（カラム）情報をメンバに格納する
-'   Function        get_header      メンバに格納されたヘッダ（カラム）情報を取得する
-'   Function        select_flat     Select文を発行して結果を2次元配列としてメンバに格納する
-'   Function        select_zip      Select文を発行して結果をZIP配列としてメンバに格納する
-'   Function        exec            insert文やdelete文を実行する
-'   Function        rowSize         テーブルのレコード数
-'   Function        colSize         テーブルのカラム数
-'   Function        get_data        Select したテーブルデータのコピーを返す
-'   Function        move_data       Select したテーブルデータをmoveして返す
-'   Function        SQLDrivers      インストールされているODBCドライバ配列を返す
-'   Function        excel_expr      特定のExcelブックに接続するための接続文字列
-'   Function        mdb_expr        accessdbの接続文字列
-'   Function        sqlServer_expr  SQL Serverの接続文字列
+'   Function        connect             接続文字列を発行してデータベースに接続
+'   Sub             disconnect          接続断
+'   Sub             clear               ヘッダ（カラム）データとテーブルデータを消去
+'   Property Get    last_connected      最後に成功した接続文字列の取得
+'   Property Get    last_SQL            最後に発行されたSQL文字列の取得
+'   Property Get    last_elapsed        最後に発行されたSELECT文でかかった時間 (ミリ秒)
+'   Property Get    last_execError      最後に発行されたexec文のエラー行
+'   Function        tableAttribute      テーブルの Attribute
+'   Function        read_header         Select文を発行してヘッダ（カラム）情報をメンバに格納する
+'   Function        get_header          メンバに格納されたヘッダ（カラム）情報を取得する
+'   Function        select_flat         Select文を発行して2次元配列としてメンバに格納する
+'   Function        select_rowWise      Select文を発行して行の配列としてメンバに格納する
+'   Function        select_columnWise   Select文を発行して列の配列としてメンバに格納する
+'   Function        exec                insert文やdelete文を実行する
+'   Function        rowSize             テーブルのレコード数
+'   Function        colSize             テーブルのカラム数
+'   Function        get_data            Select したテーブルデータのコピーを返す
+'   Function        move_data           Select したテーブルデータをmoveして返す
+'   Function        SQLDrivers          インストールされているODBCドライバ配列を返す
+'   Function        excel_expr          特定のExcelブックに接続するための接続文字列
+'   Function        mdb_expr            accessdbの接続文字列
+'   Function        sqlServer_expr      SQL Serverの接続文字列
 '*********************************************************************************
 
 Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
@@ -48,7 +49,12 @@ Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
-Private Declare PtrSafe Function selectODBC_zip Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function selectODBC_rowWise Lib "vbODBC.dll" ( _
+                                    ByVal n As Long, _
+                                ByRef sql As Variant, _
+                            Optional ByVal timeOutSec As Long = 0) As Variant
+
+Private Declare PtrSafe Function selectODBC_columnWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef sql As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
@@ -167,7 +173,7 @@ Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Vari
     End If
 End Function
 
-' Select文を発行して結果を2次元配列としてメンバに格納する
+' Select文を発行して2次元配列としてメンバに格納する
 Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
@@ -177,14 +183,24 @@ Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec A
     Set select_flat = Me
 End Function
 
-' Select文を発行して結果をZIP配列としてメンバに格納する
-Public Function select_zip(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
+' Select文を発行して行の配列としてメンバに格納する
+Public Function select_rowWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
     laptime_ = GetTickCount()
-    mydata_ = selectODBC_zip(myNo_, sqlExpr, timeOutSec)
+    mydata_ = selectODBC_rowWise(myNo_, sqlExpr, timeOutSec)
     laptime_ = GetTickCount() - laptime_
-    Set select_zip = Me
+    Set select_rowWise = Me
+End Function
+
+' Select文を発行して列の配列としてメンバに格納する
+Public Function select_columnWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
+    mySQL_ = sqlExpr
+    read_header sqlExpr
+    laptime_ = GetTickCount()
+    mydata_ = selectODBC_columnWise(myNo_, sqlExpr, timeOutSec)
+    laptime_ = GetTickCount() - laptime_
+    Set select_columnWise = Me
 End Function
 
 ' insert文やdelete文を実行する
