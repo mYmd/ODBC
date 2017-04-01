@@ -33,10 +33,15 @@ namespace   {
     std::vector<pODBCStmt>                  vODBCStmt;
 
     tstring getTypeStr(SQLSMALLINT);
+
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
+
     auto selectODBC_result(__int32, VARIANT*, std::vector<SQLSMALLINT>&, __int32)
         ->odbc_raii_select::result_type;
+
     BSTR getBSTR(VARIANT* expr);
+
+    void selectODBC_rcWise_imple(VARIANT&, odbc_raii_select::result_type const&, std::vector<SQLSMALLINT> const&, bool);
 }
 
 __int32 __stdcall terminateODBC(__int32 myNo)
@@ -110,48 +115,23 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
     return ret;
 }
 
-VARIANT __stdcall selectODBC_zip(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
+VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
 {
     VARIANT ret;
     ::VariantInit(&ret);
     std::vector<SQLSMALLINT> coltype;
     auto result = selectODBC_result(myNo, SQL, coltype, timeOutSec);
-    if ( result.empty() )   return ret;
-    std::size_t const row = result.size();
-    std::size_t const col = result[0].size();
-    if ( 0==col )           return ret;
-    SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(result.size()), 0 },
-                              { static_cast<ULONG>(result[0].size()), 0 } };
-    SAFEARRAY* pArray1 = ::SafeArrayCreate(VT_VARIANT, 1, rgb + 0);
-    auto const elemsize1 = ::SafeArrayGetElemsize(pArray1);
-    char* it1 = nullptr;
-    ::SafeArrayAccessData(pArray1, reinterpret_cast<void**>(&it1));
-    if (!it1)
-    {
-        ::SafeArrayUnaccessData(pArray1);
-        return ret;
-    }
-    for (std::size_t i = 0; i < row; ++i)
-    {
-        SAFEARRAY* pArray2 = ::SafeArrayCreate(VT_VARIANT, 1, rgb + 1);
-        auto const elemsize2 = ::SafeArrayGetElemsize(pArray2);
-        char* it2 = nullptr;
-        ::SafeArrayAccessData(pArray2, reinterpret_cast<void**>(&it2));
-        for (std::size_t j = 0; j < col; ++j)
-        {
-            tstring const& str = result[i][j];
-            TCHAR const* p = str.empty() ? 0 : &str[0];
-            VARIANT elem = makeVariantFromSQLType(coltype[j], p);
-            std::swap(*reinterpret_cast<VARIANT*>(it2 + j * elemsize2), elem);
-            ::VariantClear(&elem);
-        }
-        ::SafeArrayUnaccessData(pArray2);
-        reinterpret_cast<VARIANT*>(it1 + i * elemsize1)->vt = VT_ARRAY | VT_VARIANT;
-        reinterpret_cast<VARIANT*>(it1 + i * elemsize1)->parray = pArray2;
-    }
-    ::SafeArrayUnaccessData(pArray1);
-    ret.vt = VT_ARRAY | VT_VARIANT;
-    ret.parray = pArray1;
+    selectODBC_rcWise_imple(ret, result, coltype, true);
+    return ret;
+}
+
+VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL, __int32 timeOutSec)
+{
+    VARIANT ret;
+    ::VariantInit(&ret);
+    std::vector<SQLSMALLINT> coltype;
+    auto result = selectODBC_result(myNo, SQL, coltype, timeOutSec);
+    selectODBC_rcWise_imple(ret, result, coltype, false);
     return ret;
 }
 
@@ -300,8 +280,8 @@ VARIANT __stdcall primaryKeys_1(__int32 myNo, VARIANT* schemaName, VARIANT* tabl
         SQLTCHAR* table_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
         auto primaryKeys_expr = [=](HSTMT x) {
                     return ::SQLPrimaryKeys(x,  NULL,       SQL_NTS,
-                                            schema_name,    schema_name_t.length(),
-                                            table_name,     table_name_t.length());
+                                            schema_name,    static_cast<SQLSMALLINT>(schema_name_t.length()),
+                                            table_name,     static_cast<SQLSMALLINT>(table_name_t.length()) );
         };
         if ( SQL_SUCCESS != st.invoke(primaryKeys_expr) )
             return ret;
@@ -489,12 +469,56 @@ namespace   {
 
     BSTR getBSTR(VARIANT* expr)
     {
-        if ( !expr )
+        if (!expr)
             return nullptr;
-        else if ( expr->vt & VT_BYREF )
-            return ( (expr->vt & VT_BSTR) && expr->pbstrVal )? *expr->pbstrVal : nullptr;
+        else if (expr->vt & VT_BYREF)
+            return ((expr->vt & VT_BSTR) && expr->pbstrVal) ? *expr->pbstrVal : nullptr;
         else
-            return ( (expr->vt & VT_BSTR) && expr->bstrVal )?   expr->bstrVal  : nullptr;
+            return ((expr->vt & VT_BSTR) && expr->bstrVal) ? expr->bstrVal : nullptr;
+    }
+
+    void selectODBC_rcWise_imple(VARIANT&                               ret,
+        odbc_raii_select::result_type const&   result,
+        std::vector<SQLSMALLINT> const&        coltype,
+        bool                                   rc = true)
+    {
+        if (0 == result.size() || 0 == result[0].size())      return;
+        std::size_t const outerSize = rc ? result.size() : result[0].size();
+        std::size_t const innerSize = rc ? result[0].size() : result.size();
+        SAFEARRAYBOUND outerBound = { static_cast<ULONG>(outerSize), 0 };
+        SAFEARRAYBOUND innerBound = { static_cast<ULONG>(innerSize), 0 };
+        SAFEARRAY* outerArray = ::SafeArrayCreate(VT_VARIANT, 1, &outerBound);  //
+        auto const outerElemSize = ::SafeArrayGetElemsize(outerArray);
+        char* outerBegin = nullptr;
+        ::SafeArrayAccessData(outerArray, reinterpret_cast<void**>(&outerBegin));
+        if (!outerBegin)
+        {
+            ::SafeArrayUnaccessData(outerArray);
+            return;
+        }
+        for (std::size_t outerIter = 0; outerIter < outerSize; ++outerIter)
+        {
+            SAFEARRAY* innerArray = ::SafeArrayCreate(VT_VARIANT, 1, &innerBound);
+            auto const innerElemSize = ::SafeArrayGetElemsize(innerArray);
+            char* innerBegin = nullptr;
+            ::SafeArrayAccessData(innerArray, reinterpret_cast<void**>(&innerBegin));
+            for (std::size_t innerIter = 0; innerIter < innerSize; ++innerIter)
+            {
+                tstring const& str = rc ?
+                    result[outerIter][innerIter] :
+                    result[innerIter][outerIter];
+                TCHAR const* p = str.empty() ? 0 : &str[0];
+                VARIANT elem = makeVariantFromSQLType(coltype[rc? innerIter: outerIter], p);
+                std::swap(*reinterpret_cast<VARIANT*>(innerBegin + innerIter * innerElemSize), elem);
+                ::VariantClear(&elem);
+            }
+            ::SafeArrayUnaccessData(innerArray);
+            reinterpret_cast<VARIANT*>(outerBegin + outerIter * outerElemSize)->vt = VT_ARRAY | VT_VARIANT;
+            reinterpret_cast<VARIANT*>(outerBegin + outerIter * outerElemSize)->parray = innerArray;
+        }
+        ::SafeArrayUnaccessData(outerArray);
+        ret.vt = VT_ARRAY | VT_VARIANT;
+        ret.parray = outerArray;
     }
 
 }
