@@ -69,7 +69,7 @@ Public Function connect(ByVal connectionExpr As String, _
     connect = False
     disconnect
     On Error Resume Next
-    If connectionExpr Like "*Provider*=*" Then
+    If StrConv(connectionExpr, vbLowerCase) Like "*provider*=*" Then
         mycon_.Open connectionExpr
     Else
         mycon_.Open "Provider=" & provider & ";" & connectionExpr
