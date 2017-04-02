@@ -46,7 +46,7 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
-    Private mycon_ As ADODB.Connection    ' Object
+    Private mycon_              As ADODB.Connection    ' Object
     Private connectionString    As String    ' 接続文字列
     Private mySQL_              As String
     Private myheader_           As Variant
@@ -69,7 +69,11 @@ Public Function connect(ByVal connectionExpr As String, _
     connect = False
     disconnect
     On Error Resume Next
-    mycon_.Open "Provider=" & provider & ";" & connectionExpr
+    If connectionExpr Like "*Provider*=*" Then
+        mycon_.Open connectionExpr
+    Else
+        mycon_.Open "Provider=" & provider & ";" & connectionExpr
+    End If
     connect = mycon_.State <> adStateClosed
     If connect Then connectionString = connectionExpr
     ' https://msdn.microsoft.com/ja-jp/library/cc426812.aspx
@@ -287,7 +291,7 @@ Public Function excel_expr(ByVal bookName As String) As String
     permutate drivers, reverse(sortIndex(mapF(p_len, drivers)))
     i = find_pred(p_equal(excel_expr), mapF(p_left(, Len(excel_expr)), drivers))
     If i <= UBound(drivers) Then
-        excel_expr = "DBA=R;Driver={" & drivers(i) & "};DBQ="
+        excel_expr = "Provider=MSDASQL;DBA=R;Driver={" & drivers(i) & "};DBQ="
         excel_expr = excel_expr & bookName
     Else
         excel_expr = ""
@@ -296,10 +300,9 @@ End Function
 
 ' accessdbの接続文字列
 Public Function mdb_expr(ByVal dbName As String) As String
-    Dim drivers As Variant
     Dim i As Variant
-    mdb_expr = "Driver={Microsoft Access Driver (*.mdb, *.accdb)};"
-    mdb_expr = mdb_expr & "DBQ=" & dbName
+    mdb_expr = "Provider=Microsoft.Ace.OLEDB.12.0;"
+    mdb_expr = mdb_expr & "Data Source=" & dbName
     'select * from MSysNameMap
 End Function
 
@@ -310,7 +313,7 @@ Public Function sqlServer_expr(ByVal server As String, _
                                Optional ByVal pwd As String = "") As String
     Dim drivers As Variant
     Dim i As Variant
-    sqlServer_expr = "Driver={SQL Server Native Client 11.0};"
+    sqlServer_expr = "Provider=SQLOLEDB;Driver={SQL Server Native Client 11.0};"
     If 0 = Len(uid) Then
         sqlServer_expr = sqlServer_expr & " Trusted_Connection=YES;"
     End If
@@ -417,3 +420,4 @@ Public Function insert_expr_(ByVal table_name As String, _
     End If
     swapVariant insert_expr_, ret
 End Function
+
