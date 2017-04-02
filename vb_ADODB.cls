@@ -11,6 +11,34 @@ Option Explicit
 ' vb_ADODB
 'Copyright (c) 2017 mmYYmmdd
 
+'*********************************************************************************
+' ADODB接続
+' --------------------------------------------------------------------------------
+' Function connect              接続文字列を発行してデータベースに接続
+' Sub disconnect                接続断
+' Sub clear                     ヘッダ（カラム）データとテーブルデータを消去
+' Property Get last_connected   最後に成功した接続文字列の取得
+' Property Get last_SQL         最後に発行されたSQL文字列の取得
+' Property Get last_elapsed     最後に発行されたSELECT文でかかった時間（ミリ秒）
+' Property Get last_execError   最後に発行されたexec文のエラー行
+' Function get_header           ヘッダ（カラム）情報を取得する
+' Function tableAttribute       テーブルの Attribute
+' Function select_flat          Select文を発行して2次元配列としてメンバに格納する
+' Function select_rowWise       Select文を発行して行の配列としてメンバに格納する
+' Function select_columnWise    Select文を発行して列の配列としてメンバに格納する
+' Function exec                 insert文やdelete文を実行する
+' Function rowSize              Selectしたレコード数
+' Function colSize              Selectしたカラム数
+' Function get_data             Selectしたテーブルデータのコピーを返す
+' Function move_data            Selectしたテーブルデータをmoveして返す
+' Function SQLDrivers           インストールされているODBCドライバ配列を返す
+' Function excel_expr           特定のExcelブックに接続するための接続文字列
+' Function mdb_expr             accessdbの接続文字列
+' Function sqlServer_expr       SQL Serverの接続文字列
+' Function insert_expr          insert文
+' Function insert_expr_         insert文（jag配列または2次元配列）
+'*********************************************************************************
+
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                                 ByVal buf As String, _
                                             ByVal cbBufMax As Integer, _
@@ -19,7 +47,7 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
     Private mycon_ As ADODB.Connection    ' Object
-    Private connectionString    As String    ' �ڑ�������
+    Private connectionString    As String    ' 接続文字列
     Private mySQL_              As String
     Private myheader_           As Variant
     Private mydata_             As Variant
@@ -35,6 +63,7 @@ Private Sub Class_Terminate()
     Set mycon_ = Nothing
 End Sub
 
+' 接続文字列を発行してデータベースに接続
 Public Function connect(ByVal connectionExpr As String, _
                     Optional ByVal provider As String = "MSDASQL") As Boolean
     connect = False
@@ -46,44 +75,45 @@ Public Function connect(ByVal connectionExpr As String, _
     ' https://msdn.microsoft.com/ja-jp/library/cc426812.aspx
 End Function
 
+' 接続断
 Public Sub disconnect()
     If mycon_.State <> adStateClosed Then mycon_.Close
 End Sub
 
-' �Ō�ɐ��������ڑ�������̎擾
-Public Property Get last_connected() As String
-    last_connected = connectionString
-End Property
-
-' �Ō�ɔ��s���ꂽSQL������̎擾
-Public Property Get last_SQL() As String
-    last_SQL = mySQL_
-End Property
-
-' �Ō�ɔ��s���ꂽSELECT���ł����������ԁi�~���b�j
-Public Property Get last_elapsed() As Long
-    last_elapsed = laptime_
-End Property
-
-'�Ō�ɔ��s���ꂽexec���̃G���[�s
-Public Property Get last_execError() As Variant
-    last_execError = myErrorNo_
-End Property
-
-' �w�b�_�i�J�����j�f�[�^�ƃe�[�u���f�[�^������
+' ヘッダ（カラム）データとテーブルデータを消去
 Public Sub clear()
     myheader_ = Empty
     mydata_ = Empty
 End Sub
 
-' �w�b�_�i�J�����j�����擾����
+' 最後に成功した接続文字列の取得
+Public Property Get last_connected() As String
+    last_connected = connectionString
+End Property
+
+' 最後に発行されたSQL文字列の取得
+Public Property Get last_SQL() As String
+    last_SQL = mySQL_
+End Property
+
+' 最後に発行されたSELECT文でかかった時間（ミリ秒）
+Public Property Get last_elapsed() As Long
+    last_elapsed = laptime_
+End Property
+
+'最後に発行されたexec文のエラー行
+Public Property Get last_execError() As Variant
+    last_execError = myErrorNo_
+End Property
+
+' ヘッダ（カラム）情報を取得する
 Public Function get_header() As Variant
     get_header = myheader_
 End Function
 
-' �e�[�u���� Attribute
-' �񖼁A�^���A�f�[�^���A���x�A���x�A�����i1:�L�[, -1:Nullable, 0:���j
-' SQLServer��SQLOLEDB��connect���Ȃ��Ǝ擾�ł��Ȃ�
+' テーブルの Attribute
+' 列名、型名、データ長、精度、精度、属性（1:キー, -1:Nullable, 0:他）
+' SQLServerはSQLOLEDBでconnectしないと取得できない
 Public Function tableAttribute(ByVal tableName As String) As Variant
     If mycon_.State <> adStateClosed Then
         Dim CAT As Object       ' ADOX.Catalog
@@ -123,11 +153,13 @@ Public Function tableAttribute(ByVal tableName As String) As Variant
     End If
 End Function
 
+' Select文を発行して2次元配列としてメンバに格納する
 Public Function select_flat(ByVal sqlExpr As String) As vb_ADODB
     Set select_flat = select_rowWise(sqlExpr)
     mydata_ = unzip(mydata_, 2)
 End Function
 
+' Select文を発行して行の配列としてメンバに格納する
 Public Function select_rowWise(ByVal sqlExpr As String) As vb_ADODB
     laptime_ = GetTickCount()
     mySQL_ = sqlExpr
@@ -181,12 +213,13 @@ select_error:
     laptime_ = GetTickCount() - laptime_
 End Function
 
+' Select文を発行して列の配列としてメンバに格納する
 Public Function select_columnWise(ByVal sqlExpr As String) As vb_ADODB
     Set select_columnWise = select_rowWise(sqlExpr)
     mydata_ = unzip(mydata_, 1)
 End Function
 
-'
+' insert文やdelete文を実行する
 Public Function exec(ByRef sqlExpr As Variant) As vb_ADODB
     myErrorNo_ = Empty
     On Error Resume Next
@@ -217,27 +250,27 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ADODB
     End If
 End Function
 
-' �e�[�u���̃��R�[�h��
+' テーブルのレコード数
 Public Function rowSize() As Long
     rowSize = Haskell_2_stdFun.rowSize(mydata_)
 End Function
 
-' �e�[�u���̃J������
+' テーブルのカラム数
 Public Function colSize() As Long
     colSize = Haskell_2_stdFun.colSize(mydata_)
 End Function
 
-' Select �����e�[�u���f�[�^�̃R�s�[��Ԃ�
+' Select したテーブルデータのコピーを返す
 Public Function get_data() As Variant
     get_data = mydata_
 End Function
 
-' Select �����e�[�u���f�[�^��move���ĕԂ�
+' Select したテーブルデータをmoveして返す
 Public Function move_data() As Variant
     swapVariant move_data, mydata_
 End Function
 
-' �C���X�g�[������Ă���ODBC�h���C�o�z���Ԃ�
+' インストールされているODBCドライバ配列を返す
 Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
     Dim buf As String, ret As Byte, retL As Integer
     buf = Space(IIf(0 < buflen, buflen, 2 * 1024))
@@ -245,7 +278,7 @@ Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
     SQLDrivers = Split(left(buf, retL - 2), Chr(0))
 End Function
 
-' �����Excel�u�b�N�ɐڑ����邽�߂̐ڑ�������
+' 特定のExcelブックに接続するための接続文字列
 Public Function excel_expr(ByVal bookName As String) As String
     Dim drivers As Variant
     Dim i As Variant
@@ -261,7 +294,7 @@ Public Function excel_expr(ByVal bookName As String) As String
     End If
 End Function
 
-' accessdb�̐ڑ�������
+' accessdbの接続文字列
 Public Function mdb_expr(ByVal dbName As String) As String
     Dim drivers As Variant
     Dim i As Variant
@@ -270,7 +303,7 @@ Public Function mdb_expr(ByVal dbName As String) As String
     'select * from MSysNameMap
 End Function
 
-' SQL Server�̐ڑ�������
+' SQL Serverの接続文字列
 Public Function sqlServer_expr(ByVal server As String, _
                                ByVal dbName As String, _
                                Optional ByVal uid As String = "", _
@@ -291,52 +324,52 @@ Public Function sqlServer_expr(ByVal server As String, _
     ' select * from sysobjects where xtype = 'U'
 End Function
 
-Private Function DataTypeEnum2Str(ByVal n As Long) As String
-    Select Case n
-        Case adArray:               DataTypeEnum2Str = "ARRAY"
-        Case adBigInt:              DataTypeEnum2Str = "BIGINT"
-        Case adBinary:              DataTypeEnum2Str = "BINARY"
-        Case adBoolean:             DataTypeEnum2Str = "BOOLEAN"
-        Case adBSTR:                DataTypeEnum2Str = "BSTR"
-        Case adChapter:             DataTypeEnum2Str = "CHAPTER"
-        Case adChar:                DataTypeEnum2Str = "CHAR"
-        Case adCurrency:            DataTypeEnum2Str = "CURRENCY"
-        Case adDate:                DataTypeEnum2Str = "DATE"
-        Case adDBDate:              DataTypeEnum2Str = "DBDATE"
-        Case adDBTime:              DataTypeEnum2Str = "DBTIME"
-        Case adDBTimeStamp:         DataTypeEnum2Str = "DBTIMESTAMP"
-        Case adDecimal:             DataTypeEnum2Str = "DECIMAL"
-        Case adDouble:              DataTypeEnum2Str = "DOUBLE"
-        Case adEmpty:               DataTypeEnum2Str = "EMPTY"
-        Case adError:               DataTypeEnum2Str = "ERROR"
-        Case adFileTime:            DataTypeEnum2Str = "FILETIME"
-        Case adGUID:                DataTypeEnum2Str = "GUID"
-        Case adIDispatch:           DataTypeEnum2Str = "IDISPATCH"
-        Case adInteger:             DataTypeEnum2Str = "INTEGER"
-        Case adIUnknown:            DataTypeEnum2Str = "IUNKNOWN"
-        Case adLongVarBinary:       DataTypeEnum2Str = "LONGVARBINARY"
-        Case adLongVarChar:         DataTypeEnum2Str = "LONGVARCHAR"
-        Case adLongVarWChar:        DataTypeEnum2Str = "LONGVARWCHAR"
-        Case adNumeric:             DataTypeEnum2Str = "NUMERIC"
-        Case adPropVariant:         DataTypeEnum2Str = "PROPVARIANT"
-        Case adSingle:              DataTypeEnum2Str = "SINGLE"
-        Case adSmallInt:            DataTypeEnum2Str = "SMALLINT"
-        Case adTinyInt:             DataTypeEnum2Str = "TINYINT"
-        Case adUnsignedBigInt:      DataTypeEnum2Str = "UNSIGNEDBIGINT"
-        Case adUnsignedInt:         DataTypeEnum2Str = "UNSIGNEDINT"
-        Case adUnsignedSmallInt:    DataTypeEnum2Str = "UNSIGNEDSMALLINT"
-        Case adUnsignedTinyInt:     DataTypeEnum2Str = "UNSIGNEDTINYINT"
-        Case adUserDefined:         DataTypeEnum2Str = "USERDEFINED"
-        Case adVarBinary:           DataTypeEnum2Str = "VARBINARY"
-        Case adVarChar:             DataTypeEnum2Str = "VARCHAR"
-        Case adVariant:             DataTypeEnum2Str = "VARIANT"
-        Case adVarNumeric:          DataTypeEnum2Str = "VARNUMERIC"
-        Case adVarWChar:            DataTypeEnum2Str = "VARWCHAR"
-        Case adWChar:               DataTypeEnum2Str = "WCHAR"
-    End Select
-End Function
+    Private Function DataTypeEnum2Str(ByVal n As Long) As String
+        Select Case n
+            Case adArray:               DataTypeEnum2Str = "ARRAY"
+            Case adBigInt:              DataTypeEnum2Str = "BIGINT"
+            Case adBinary:              DataTypeEnum2Str = "BINARY"
+            Case adBoolean:             DataTypeEnum2Str = "BOOLEAN"
+            Case adBSTR:                DataTypeEnum2Str = "BSTR"
+            Case adChapter:             DataTypeEnum2Str = "CHAPTER"
+            Case adChar:                DataTypeEnum2Str = "CHAR"
+            Case adCurrency:            DataTypeEnum2Str = "CURRENCY"
+            Case adDate:                DataTypeEnum2Str = "DATE"
+            Case adDBDate:              DataTypeEnum2Str = "DBDATE"
+            Case adDBTime:              DataTypeEnum2Str = "DBTIME"
+            Case adDBTimeStamp:         DataTypeEnum2Str = "DBTIMESTAMP"
+            Case adDecimal:             DataTypeEnum2Str = "DECIMAL"
+            Case adDouble:              DataTypeEnum2Str = "DOUBLE"
+            Case adEmpty:               DataTypeEnum2Str = "EMPTY"
+            Case adError:               DataTypeEnum2Str = "ERROR"
+            Case adFileTime:            DataTypeEnum2Str = "FILETIME"
+            Case adGUID:                DataTypeEnum2Str = "GUID"
+            Case adIDispatch:           DataTypeEnum2Str = "IDISPATCH"
+            Case adInteger:             DataTypeEnum2Str = "INTEGER"
+            Case adIUnknown:            DataTypeEnum2Str = "IUNKNOWN"
+            Case adLongVarBinary:       DataTypeEnum2Str = "LONGVARBINARY"
+            Case adLongVarChar:         DataTypeEnum2Str = "LONGVARCHAR"
+            Case adLongVarWChar:        DataTypeEnum2Str = "LONGVARWCHAR"
+            Case adNumeric:             DataTypeEnum2Str = "NUMERIC"
+            Case adPropVariant:         DataTypeEnum2Str = "PROPVARIANT"
+            Case adSingle:              DataTypeEnum2Str = "SINGLE"
+            Case adSmallInt:            DataTypeEnum2Str = "SMALLINT"
+            Case adTinyInt:             DataTypeEnum2Str = "TINYINT"
+            Case adUnsignedBigInt:      DataTypeEnum2Str = "UNSIGNEDBIGINT"
+            Case adUnsignedInt:         DataTypeEnum2Str = "UNSIGNEDINT"
+            Case adUnsignedSmallInt:    DataTypeEnum2Str = "UNSIGNEDSMALLINT"
+            Case adUnsignedTinyInt:     DataTypeEnum2Str = "UNSIGNEDTINYINT"
+            Case adUserDefined:         DataTypeEnum2Str = "USERDEFINED"
+            Case adVarBinary:           DataTypeEnum2Str = "VARBINARY"
+            Case adVarChar:             DataTypeEnum2Str = "VARCHAR"
+            Case adVariant:             DataTypeEnum2Str = "VARIANT"
+            Case adVarNumeric:          DataTypeEnum2Str = "VARNUMERIC"
+            Case adVarWChar:            DataTypeEnum2Str = "VARWCHAR"
+            Case adWChar:               DataTypeEnum2Str = "WCHAR"
+        End Select
+    End Function
 
-' insert��
+' insert文
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As String
@@ -366,7 +399,7 @@ Public Function insert_expr(ByVal table_name As String, _
             ");"
 End Function
 
-' insert���ijag�z��܂���2�����z��j
+' insert文（jag配列または2次元配列）
 Public Function insert_expr_(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As Variant
@@ -384,4 +417,3 @@ Public Function insert_expr_(ByVal table_name As String, _
     End If
     swapVariant insert_expr_, ret
 End Function
-
