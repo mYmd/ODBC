@@ -48,7 +48,7 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
-    Private mycon_              As ADODB.Connection    ' Object
+    Private mycon_              As ADODB.Connection
     Private connectionString    As String    ' 接続文字列
     Private mySQL_              As String
     Private myheader_           As Variant
@@ -57,7 +57,7 @@ Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
     Private laptime_            As Long
 
 Private Sub Class_Initialize()
-    Set mycon_ = New ADODB.Connection 'CreateObject("ADODB.Connection")
+    Set mycon_ = New ADODB.Connection
 End Sub
 
 Private Sub Class_Terminate()
@@ -146,7 +146,7 @@ Public Function tableAttribute(ByVal tableName As String) As Variant
         Dim CAT As ADOX.Catalog
         Set CAT = New ADOX.Catalog
         CAT.ActiveConnection = mycon_
-        Dim TBL As Object       ' ADOX.Table
+        Dim TBL As ADOX.Table
         Dim i As Long, j As Long, count As Long
         Dim ret As Variant
         Set TBL = CAT.Tables(tableName)
