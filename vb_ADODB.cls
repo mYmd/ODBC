@@ -13,6 +13,7 @@ Option Explicit
 
 '*********************************************************************************
 ' ADODB接続
+' ADO(Microsoft AitiveX Data Objects) および ADOX(Microsoft ADO Ext.)を参照設定
 ' --------------------------------------------------------------------------------
 ' Function connect              接続文字列を発行してデータベースに接続
 ' Sub disconnect                接続断
@@ -22,6 +23,7 @@ Option Explicit
 ' Property Get last_elapsed     最後に発行されたSELECT文でかかった時間（ミリ秒）
 ' Property Get last_execError   最後に発行されたexec文のエラー行
 ' Function get_header           ヘッダ（カラム）情報を取得する
+' Function list_tables          テーブル一覧取得
 ' Function tableAttribute       テーブルの Attribute
 ' Function select_flat          Select文を発行して2次元配列としてメンバに格納する
 ' Function select_rowWise       Select文を発行して行の配列としてメンバに格納する
@@ -115,13 +117,34 @@ Public Function get_header() As Variant
     get_header = myheader_
 End Function
 
+' テーブル一覧取得
+Public Function list_tables(Optional ByVal type_ As String = "TABLE") As Variant
+    If mycon_.State <> adStateClosed Then
+        Dim CAT As ADOX.Catalog
+        Set CAT = New ADOX.Catalog
+        CAT.ActiveConnection = mycon_
+        Dim count As Long:      count = CAT.Tables.count
+        Dim ret As Variant:     ret = makeM(count, 2)
+        Dim i As Long
+        For i = 0 To count - 1 Step 1
+            ret(i, 0) = CAT.Tables(i).name
+            ret(i, 1) = CAT.Tables(i).Type
+        Next i
+        Set CAT = Nothing
+        If type_ <> "*" Then
+            ret = filterR(ret, mapF(p_equal(type_), selectCol(ret, 1)))
+        End If
+        Call swapVariant(list_tables, ret)
+    End If
+End Function
+
 ' テーブルの Attribute
 ' 列名、型名、データ長、精度、精度、属性（1:キー, -1:Nullable, 0:他）
 ' SQLServerはSQLOLEDBでconnectしないと取得できない
 Public Function tableAttribute(ByVal tableName As String) As Variant
     If mycon_.State <> adStateClosed Then
-        Dim CAT As Object       ' ADOX.Catalog
-        Set CAT = CreateObject("ADOX.Catalog")  'New ADOX.Catalog
+        Dim CAT As ADOX.Catalog
+        Set CAT = New ADOX.Catalog
         CAT.ActiveConnection = mycon_
         Dim TBL As Object       ' ADOX.Table
         Dim i As Long, j As Long, count As Long
@@ -150,7 +173,7 @@ Public Function tableAttribute(ByVal tableName As String) As Variant
                     Exit For
                 End If
             End With
-         Next i
+        Next i
         Set TBL = Nothing
         Set CAT = Nothing
         Call swapVariant(tableAttribute, ret)
@@ -160,13 +183,12 @@ End Function
 ' Select文を発行して2次元配列としてメンバに格納する
 Public Function select_flat(ByVal sqlExpr As String) As vb_ADODB
     Set select_flat = select_rowWise(sqlExpr)
-    mydata_ = unzip(mydata_, 2)
+    If Not IsEmpty(mydata_) Then mydata_ = unzip(mydata_, 2)
 End Function
 
 ' Select文を発行して行の配列としてメンバに格納する
 Public Function select_rowWise(ByVal sqlExpr As String) As vb_ADODB
     laptime_ = GetTickCount()
-    mySQL_ = sqlExpr
     Set select_rowWise = Me
     Me.clear
     If mycon_.State = adStateClosed Then Exit Function
@@ -211,16 +233,17 @@ Public Function select_rowWise(ByVal sqlExpr As String) As vb_ADODB
             rs.MoveNext
         Loop Until rs.EOF = True
     End If
-select_error:
     rs.Close
     mydata_ = vec.free
+    mySQL_ = sqlExpr
+select_error:
     laptime_ = GetTickCount() - laptime_
 End Function
 
 ' Select文を発行して列の配列としてメンバに格納する
 Public Function select_columnWise(ByVal sqlExpr As String) As vb_ADODB
     Set select_columnWise = select_rowWise(sqlExpr)
-    mydata_ = unzip(mydata_, 1)
+    If Not IsEmpty(mydata_) Then mydata_ = unzip(mydata_, 1)
 End Function
 
 ' insert文やdelete文を実行する
@@ -271,7 +294,7 @@ End Function
 
 ' Select したテーブルデータをmoveして返す
 Public Function move_data() As Variant
-    swapVariant move_data, mydata_
+    Call swapVariant(move_data, mydata_)
 End Function
 
 ' インストールされているODBCドライバ配列を返す
@@ -303,7 +326,8 @@ Public Function mdb_expr(ByVal dbName As String) As String
     Dim i As Variant
     mdb_expr = "Provider=Microsoft.Ace.OLEDB.12.0;"
     mdb_expr = mdb_expr & "Data Source=" & dbName
-    'select * from MSysNameMap
+    'MSysAccessObjects
+    'MSysObjects
 End Function
 
 ' SQL Serverの接続文字列
@@ -418,6 +442,5 @@ Public Function insert_expr_(ByVal table_name As String, _
             ret(i) = insert_expr(table_name, attr, selectRow_b(values, i))
         Next i
     End If
-    swapVariant insert_expr_, ret
+    Call swapVariant(insert_expr_, ret)
 End Function
-
