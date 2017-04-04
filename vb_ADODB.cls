@@ -159,7 +159,7 @@ Public Function tableAttribute(ByVal tableName As String) As Variant
                 ret(i, 2) = .DefinedSize
                 ret(i, 3) = .Precision
                 ret(i, 4) = .NumericScale
-                ret(i, 5) = IIf(.Attributes = 2, -1, 0) 'adColNullable
+                ret(i, 5) = IIf(.Attributes = adColNullable, -1, 0) '2
             End With
         Next i
         Dim pos As Long
@@ -176,7 +176,14 @@ Public Function tableAttribute(ByVal tableName As String) As Variant
         Next i
         Set TBL = Nothing
         Set CAT = Nothing
-        Call swapVariant(tableAttribute, ret)
+        Dim rs As ADODB.Recordset
+        Set rs = New ADODB.Recordset
+        Dim header As Variant
+        header = selectCol(read_header_(rs, "SELECT * FROM " & tableName), 0)
+        Set rs = Nothing
+        Dim ord As Variant
+        ord = mapF(p_find_pred(p_equal(, ph_2), selectCol(ret, 0)), header)
+        tableAttribute = subM(ret, ord)
     End If
 End Function
 
@@ -195,28 +202,7 @@ Public Function select_rowWise(ByVal sqlExpr As String) As vb_ADODB
     Dim rs As ADODB.Recordset
     Set rs = New ADODB.Recordset
     On Error GoTo select_error
-    With rs
-        '.LockType = adLockBatchOptimistic
-        .CursorLocation = adUseClient
-        .CursorType = adOpenStatic
-        .Open sqlExpr, _
-                mycon_, _
-                    adOpenForwardOnly, _
-                        adLockReadOnly, _
-                            adCmdUnspecified
-    End With
-    Dim count As Long, i As Long
-    count = rs.Fields.count
-    myheader_ = makeM(count, 5)
-    For i = 0 To count - 1 Step 1
-        With rs.Fields(i)
-            myheader_(i, 0) = .name
-            myheader_(i, 1) = DataTypeEnum2Str(.Type)
-            myheader_(i, 2) = .DefinedSize
-            myheader_(i, 3) = .Precision
-            myheader_(i, 4) = .NumericScale
-        End With
-    Next i
+    myheader_ = read_header_(rs, sqlExpr)
     If rs.BOF Then
         rs.Close
         Exit Function
@@ -224,6 +210,8 @@ Public Function select_rowWise(ByVal sqlExpr As String) As vb_ADODB
         Dim vec As vh_stdvec
         Set vec = New vh_stdvec
         Dim rec As Variant
+        Dim count As Long, i As Long
+        count = Haskell_2_stdFun.rowSize(myheader_)
         Do
             rec = makeM(count)
             For i = 0 To count - 1 Step 1
@@ -351,51 +339,6 @@ Public Function sqlServer_expr(ByVal server As String, _
     ' select * from sysobjects where xtype = 'U'
 End Function
 
-    Private Function DataTypeEnum2Str(ByVal n As Long) As String
-        Select Case n
-            Case adArray:               DataTypeEnum2Str = "ARRAY"
-            Case adBigInt:              DataTypeEnum2Str = "BIGINT"
-            Case adBinary:              DataTypeEnum2Str = "BINARY"
-            Case adBoolean:             DataTypeEnum2Str = "BOOLEAN"
-            Case adBSTR:                DataTypeEnum2Str = "BSTR"
-            Case adChapter:             DataTypeEnum2Str = "CHAPTER"
-            Case adChar:                DataTypeEnum2Str = "CHAR"
-            Case adCurrency:            DataTypeEnum2Str = "CURRENCY"
-            Case adDate:                DataTypeEnum2Str = "DATE"
-            Case adDBDate:              DataTypeEnum2Str = "DBDATE"
-            Case adDBTime:              DataTypeEnum2Str = "DBTIME"
-            Case adDBTimeStamp:         DataTypeEnum2Str = "DBTIMESTAMP"
-            Case adDecimal:             DataTypeEnum2Str = "DECIMAL"
-            Case adDouble:              DataTypeEnum2Str = "DOUBLE"
-            Case adEmpty:               DataTypeEnum2Str = "EMPTY"
-            Case adError:               DataTypeEnum2Str = "ERROR"
-            Case adFileTime:            DataTypeEnum2Str = "FILETIME"
-            Case adGUID:                DataTypeEnum2Str = "GUID"
-            Case adIDispatch:           DataTypeEnum2Str = "IDISPATCH"
-            Case adInteger:             DataTypeEnum2Str = "INTEGER"
-            Case adIUnknown:            DataTypeEnum2Str = "IUNKNOWN"
-            Case adLongVarBinary:       DataTypeEnum2Str = "LONGVARBINARY"
-            Case adLongVarChar:         DataTypeEnum2Str = "LONGVARCHAR"
-            Case adLongVarWChar:        DataTypeEnum2Str = "LONGVARWCHAR"
-            Case adNumeric:             DataTypeEnum2Str = "NUMERIC"
-            Case adPropVariant:         DataTypeEnum2Str = "PROPVARIANT"
-            Case adSingle:              DataTypeEnum2Str = "SINGLE"
-            Case adSmallInt:            DataTypeEnum2Str = "SMALLINT"
-            Case adTinyInt:             DataTypeEnum2Str = "TINYINT"
-            Case adUnsignedBigInt:      DataTypeEnum2Str = "UNSIGNEDBIGINT"
-            Case adUnsignedInt:         DataTypeEnum2Str = "UNSIGNEDINT"
-            Case adUnsignedSmallInt:    DataTypeEnum2Str = "UNSIGNEDSMALLINT"
-            Case adUnsignedTinyInt:     DataTypeEnum2Str = "UNSIGNEDTINYINT"
-            Case adUserDefined:         DataTypeEnum2Str = "USERDEFINED"
-            Case adVarBinary:           DataTypeEnum2Str = "VARBINARY"
-            Case adVarChar:             DataTypeEnum2Str = "VARCHAR"
-            Case adVariant:             DataTypeEnum2Str = "VARIANT"
-            Case adVarNumeric:          DataTypeEnum2Str = "VARNUMERIC"
-            Case adVarWChar:            DataTypeEnum2Str = "VARWCHAR"
-            Case adWChar:               DataTypeEnum2Str = "WCHAR"
-        End Select
-    End Function
-
 ' insert文
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
@@ -444,3 +387,79 @@ Public Function insert_expr_(ByVal table_name As String, _
     End If
     Call swapVariant(insert_expr_, ret)
 End Function
+
+    ' ヘッダ情報取得
+    Private Function read_header_(ByVal rs As ADODB.Recordset, _
+                                  ByRef sqlExpr As String) As Variant
+        On Error GoTo error__
+        With rs
+            .CursorLocation = adUseClient
+            .CursorType = adOpenStatic
+            .Open sqlExpr, _
+                    mycon_, _
+                        adOpenForwardOnly, _
+                            adLockReadOnly, _
+                                adCmdUnspecified
+        End With
+        Dim count As Long, i As Long
+        count = rs.Fields.count
+        Dim header As Variant
+        header = makeM(count, 5)
+        For i = 0 To count - 1 Step 1
+            With rs.Fields(i)
+                header(i, 0) = .name
+                header(i, 1) = DataTypeEnum2Str(.Type)
+                header(i, 2) = .DefinedSize
+                header(i, 3) = .Precision
+                header(i, 4) = .NumericScale
+            End With
+        Next i
+        Call swapVariant(read_header_, header)
+error__:
+    End Function
+
+    ' フィールド型のenum値から型名に変換
+    Private Function DataTypeEnum2Str(ByVal n As Long) As String
+        Select Case n
+            Case adArray:               DataTypeEnum2Str = "ARRAY"
+            Case adBigInt:              DataTypeEnum2Str = "BIGINT"
+            Case adBinary:              DataTypeEnum2Str = "BINARY"
+            Case adBoolean:             DataTypeEnum2Str = "BOOLEAN"
+            Case adBSTR:                DataTypeEnum2Str = "BSTR"
+            Case adChapter:             DataTypeEnum2Str = "CHAPTER"
+            Case adChar:                DataTypeEnum2Str = "CHAR"
+            Case adCurrency:            DataTypeEnum2Str = "CURRENCY"
+            Case adDate:                DataTypeEnum2Str = "DATE"
+            Case adDBDate:              DataTypeEnum2Str = "DBDATE"
+            Case adDBTime:              DataTypeEnum2Str = "DBTIME"
+            Case adDBTimeStamp:         DataTypeEnum2Str = "DBTIMESTAMP"
+            Case adDecimal:             DataTypeEnum2Str = "DECIMAL"
+            Case adDouble:              DataTypeEnum2Str = "DOUBLE"
+            Case adEmpty:               DataTypeEnum2Str = "EMPTY"
+            Case adError:               DataTypeEnum2Str = "ERROR"
+            Case adFileTime:            DataTypeEnum2Str = "FILETIME"
+            Case adGUID:                DataTypeEnum2Str = "GUID"
+            Case adIDispatch:           DataTypeEnum2Str = "IDISPATCH"
+            Case adInteger:             DataTypeEnum2Str = "INTEGER"
+            Case adIUnknown:            DataTypeEnum2Str = "IUNKNOWN"
+            Case adLongVarBinary:       DataTypeEnum2Str = "LONGVARBINARY"
+            Case adLongVarChar:         DataTypeEnum2Str = "LONGVARCHAR"
+            Case adLongVarWChar:        DataTypeEnum2Str = "LONGVARWCHAR"
+            Case adNumeric:             DataTypeEnum2Str = "NUMERIC"
+            Case adPropVariant:         DataTypeEnum2Str = "PROPVARIANT"
+            Case adSingle:              DataTypeEnum2Str = "SINGLE"
+            Case adSmallInt:            DataTypeEnum2Str = "SMALLINT"
+            Case adTinyInt:             DataTypeEnum2Str = "TINYINT"
+            Case adUnsignedBigInt:      DataTypeEnum2Str = "UNSIGNEDBIGINT"
+            Case adUnsignedInt:         DataTypeEnum2Str = "UNSIGNEDINT"
+            Case adUnsignedSmallInt:    DataTypeEnum2Str = "UNSIGNEDSMALLINT"
+            Case adUnsignedTinyInt:     DataTypeEnum2Str = "UNSIGNEDTINYINT"
+            Case adUserDefined:         DataTypeEnum2Str = "USERDEFINED"
+            Case adVarBinary:           DataTypeEnum2Str = "VARBINARY"
+            Case adVarChar:             DataTypeEnum2Str = "VARCHAR"
+            Case adVariant:             DataTypeEnum2Str = "VARIANT"
+            Case adVarNumeric:          DataTypeEnum2Str = "VARNUMERIC"
+            Case adVarWChar:            DataTypeEnum2Str = "VARWCHAR"
+            Case adWChar:               DataTypeEnum2Str = "WCHAR"
+        End Select
+    End Function
