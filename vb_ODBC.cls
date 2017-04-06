@@ -160,7 +160,8 @@ Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
     Dim tmp As Variant
     tmp = columnAttributes_all(myNo_, schemaName, tableName)
-    tmp(3) = mapF(p_mult(-1), mapF(p_CLng, tmp(3)))
+    tmp(2) = mapF(p_CLng, tmp(2))                                
+    tmp(3) = mapF(p_mult(-1, p_CLng), tmp(3))
     If 0 < sizeof(tmp(5)) Then
         tmp(3) = zipWith(p_plus, tmp(3), foldl1(p_max, product_set(p_equal, tmp(0), tmp(5)), 2))
     End If
