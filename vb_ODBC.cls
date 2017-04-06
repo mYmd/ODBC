@@ -21,6 +21,7 @@ Option Explicit
 '   Property Get    last_SQL            最後に発行されたSQL文字列の取得
 '   Property Get    last_elapsed        最後に発行されたSELECT文でかかった時間 (ミリ秒)
 '   Property Get    last_execError      最後に発行されたexec文のエラー行
+'   Function        list_tables         テーブル一覧取得
 '   Function        tableAttribute      テーブルの Attribute
 '   Function        read_header         Select文を発行してヘッダ（カラム）情報をメンバに格納する
 '   Function        get_header          メンバに格納されたヘッダ（カラム）情報を取得する
@@ -46,22 +47,22 @@ Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
 
 Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
-                                ByRef sql As Variant, _
+                                ByRef SQL As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
 Private Declare PtrSafe Function selectODBC_rowWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
-                                ByRef sql As Variant, _
+                                ByRef SQL As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
 Private Declare PtrSafe Function selectODBC_columnWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
-                                ByRef sql As Variant, _
+                                ByRef SQL As Variant, _
                             Optional ByVal timeOutSec As Long = 0) As Variant
 
 Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
-                                ByRef sql As Variant, _
+                                ByRef SQL As Variant, _
                             ByVal getNullable As Long) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
@@ -72,7 +73,11 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal cbBufMax As Integer, _
                                         ByRef pcchBufOut As Integer) As Byte
 
-Private Declare PtrSafe Function primaryKeys_1 Lib "vbODBC.dll" ( _
+Private Declare PtrSafe Function table_list_all Lib "vbODBC.dll" ( _
+                                                ByVal n As Long, _
+                                            ByRef schemaName As Variant) As Variant
+
+Private Declare PtrSafe Function columnAttributes_all Lib "vbODBC.dll" ( _
                                                 ByVal n As Long, _
                                             ByRef schemaName As Variant, _
                                         ByRef tableName As Variant) As Variant
@@ -135,24 +140,32 @@ Public Property Get last_execError() As Variant
     last_execError = myErrorNo_
 End Property
 
+' テーブル一覧取得
+Function list_tables(ByRef schemaName As Variant, _
+                        Optional ByVal type_ As String = "TABLE") As Variant
+    Dim ret As Variant
+    ret = table_list_all(myNo_, schemaName)
+    If type_ <> "*" Then
+        Dim fil As Variant
+        fil = mapF(p_equal(type_), ret(1))
+        list_tables = catC(filterR(ret(0), fil), filterR(ret(1), fil))
+    Else
+        list_tables = catC(ret(0), ret(1))
+    End If
+End Function
+
 ' テーブルの Attribute
 ' 列名、型名、データ長、精度、属性（1:キー, -1:Nullable, 0:他）
 Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
-    Dim ret As Variant
-    Dim sqlExpr As String
-    sqlExpr = "SELECT * FROM " & _
-                    IIf(0 < Len(schemaName), schemaName & ".", "") & _
-                        tableName
-    ret = columnAttributes(myNo_, sqlExpr, 1)
-    Dim primaryKeys As Variant
-    primaryKeys = primaryKeys_1(myNo_, schemaName, tableName)
-    If 0 < sizeof(primaryKeys) Then
-        primaryKeys = product_set(p_equal, selectCol(ret, 0), primaryKeys)
-        primaryKeys = foldl1(p_max, primaryKeys, 2)
-        Call fillCol(ret, 4, zipWith(p_plus, selectCol(ret, 4), primaryKeys))
+    Dim tmp As Variant
+    tmp = columnAttributes_all(myNo_, schemaName, tableName)
+    tmp(3) = mapF(p_mult(-1), mapF(p_CLng, tmp(3)))
+    If 0 < sizeof(tmp(5)) Then
+        tmp(3) = zipWith(p_plus, tmp(3), foldl1(p_max, product_set(p_equal, tmp(0), tmp(5)), 2))
     End If
-    Call swapVariant(tableAttribute, ret)
+    Dim s As Variant:   s = sortIndex(mapF(p_CLng, tmp(4)))
+    tableAttribute = subM(foldl1(p_catC, move_many(tmp(0), tmp(1), tmp(2), tmp(3))), s)
 End Function
 
 ' Select文を発行してヘッダ（カラム）情報をメンバに格納する
