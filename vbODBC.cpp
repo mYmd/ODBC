@@ -216,7 +216,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     if (!SQLs ||  0 == (VT_ARRAY & SQLs->vt))        return ret;
     SAFEARRAY* pArray = (0 == (VT_BYREF & SQLs->vt)) ? (SQLs->parray) : (*SQLs->pparray);
     if (!pArray || 1 != ::SafeArrayGetDim(pArray))    return ret;
-    SAFEARRAYBOUND bounds = { 1,0 };   //óvëfêîÅALBound
+    SAFEARRAYBOUND bounds = { 1,0 };   //Ë¶ÅÁ¥†Êï∞„ÄÅLBound
     {
         ::SafeArrayGetLBound(pArray, 1, &bounds.lLbound);
         LONG ub = 0;
@@ -258,17 +258,17 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return ret;
 }
 
-// ÉeÅ[ÉuÉãàÍóó
+// „ÉÜ„Éº„Éñ„É´‰∏ÄË¶ß
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
-    struct table_func_t {       //VC++2013ëŒçÙ
+    struct table_func_t {       //VC++2013ÂØæÁ≠ñ
         SQLTCHAR* scName;   SQLSMALLINT scLen;
         SQLRETURN operator()(HSTMT x) const
         {   return ::SQLTables(x, NULL, SQL_NTS, scName, scLen, NULL, SQL_NTS, NULL, SQL_NTS);  }
     };
     auto table_func = [](SQLTCHAR* scName, SQLSMALLINT scLen, SQLTCHAR* Dummy, SQLSMALLINT dummy)
     {
-        //return [=](HSTMT x) {     //VC++2013Ç≈ÇÕNG
+        //return [=](HSTMT x) {     //VC++2013„Åß„ÅØNG
         //    return ::SQLTables(x, NULL, SQL_NTS, scName, scLen, NULL, SQL_NTS, NULL, SQL_NTS);    };
         return table_func_t{ scName, scLen };
     };
@@ -291,29 +291,29 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// ÉeÅ[ÉuÉãÇ…Ç†ÇÈëSÉJÉâÉÄÇÃëÆê´
+// „ÉÜ„Éº„Éñ„É´„Å´„ÅÇ„ÇãÂÖ®„Ç´„É©„É†„ÅÆÂ±ûÊÄß
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
-    struct column_func_t {       //VC++2013ëŒçÙ
+    struct column_func_t {       //VC++2013ÂØæÁ≠ñ
         SQLTCHAR* scName, *tbName;  SQLSMALLINT scLen, tbLen;
         SQLRETURN operator()(HSTMT x) const
         {   return ::SQLColumns(x, NULL, SQL_NTS, scName, scLen, tbName, tbLen, NULL, SQL_NTS); }
     };
-    struct primarykeys_func_t {     //VC++2013ëŒçÙ
+    struct primarykeys_func_t {     //VC++2013ÂØæÁ≠ñ
         SQLTCHAR* scName, *tbName;  SQLSMALLINT scLen, tbLen;
         SQLRETURN operator()(HSTMT x) const
         {   return ::SQLPrimaryKeys(x, NULL, SQL_NTS, scName, scLen, tbName, tbLen);    }
     };
     auto column_func = [](SQLTCHAR* scName, SQLSMALLINT scLen, SQLTCHAR* tbName, SQLSMALLINT tbLen)
     {
-        //return [=](HSTMT x) {     //VC++2013Ç≈ÇÕNG
+        //return [=](HSTMT x) {     //VC++2013„Åß„ÅØNG
         //    return ::SQLColumns(x, NULL, SQL_NTS, scName, scLen, tbName, tbLen, NULL, SQL_NTS);   };
         return column_func_t{ scName, tbName, scLen, tbLen };
     };
     auto primarykeys_func = [](SQLTCHAR* scName, SQLSMALLINT scLen, SQLTCHAR* tbName, SQLSMALLINT tbLen)
     {
-        //return [=](HSTMT x) {     //VC++2013Ç≈ÇÕNG
-        //    return ::SQLColumns(x, NULL, SQL_NTS, scName, scLen, tbName, tbLen, NULL, SQL_NTS);   };
+        //return [=](HSTMT x) {     //VC++2013„Åß„ÅØNG
+        //    return ::SQLPrimaryKeys(x, NULL, SQL_NTS, scName, scLen, tbName, tbLen));   };
         return primarykeys_func_t{ scName, tbName, scLen, tbLen };
     };
     VARIANT column_name = catalogValue(column_func, myNo, schemaName, tableName, 4);          // COLUMN_NAME
@@ -523,7 +523,7 @@ namespace {
         ret.parray = outerArray.get();
     }
 
-    // ÉJÉ^ÉçÉOä÷êî
+    // „Ç´„Çø„É≠„Ç∞Èñ¢Êï∞
     template <typename F>
     VARIANT catalogValue(F&& func, __int32 myNo, VARIANT* schemaName, VARIANT* tableName, SQLUSMALLINT ColumnNumber)
     {
