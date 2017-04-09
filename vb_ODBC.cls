@@ -12,43 +12,48 @@ Option Explicit
 'Copyright (c) 2016 mmYYmmdd
 
 '*********************************************************************************
-' ODBCæ¥ç¶š
+' ODBCÚ‘±
 ' --------------------------------------------------------------------------------
-'   Function        connect             æ¥ç¶šæ–‡å­—åˆ—ã‚’ç™ºè¡Œã—ã¦ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ã«æ¥ç¶š
-'   Sub             disconnect          æ¥ç¶šæ–­
-'   Sub             clear               ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰ãƒ‡ãƒ¼ã‚¿ã¨ãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’æ¶ˆå»
-'   Property Get    last_connected      æœ€å¾Œã«æˆåŠŸã—ãŸæ¥ç¶šæ–‡å­—åˆ—ã®å–å¾—
-'   Property Get    last_SQL            æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSQLæ–‡å­—åˆ—ã®å–å¾—
-'   Property Get    last_elapsed        æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSELECTæ–‡ã§ã‹ã‹ã£ãŸæ™‚é–“ (ãƒŸãƒªç§’)
-'   Property Get    last_execError      æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸexecæ–‡ã®ã‚¨ãƒ©ãƒ¼è¡Œ
-'   Function        list_tables         ãƒ†ãƒ¼ãƒ–ãƒ«ä¸€è¦§å–å¾—
-'   Function        tableAttribute      ãƒ†ãƒ¼ãƒ–ãƒ«ã® Attribute
-'   Function        read_header         Selectæ–‡ã‚’ç™ºè¡Œã—ã¦ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
-'   Function        get_header          ãƒ¡ãƒ³ãƒã«æ ¼ç´ã•ã‚ŒãŸãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’å–å¾—ã™ã‚‹
-'   Function        select_flat         Selectæ–‡ã‚’ç™ºè¡Œã—ã¦2æ¬¡å…ƒé…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
-'   Function        select_rowWise      Selectæ–‡ã‚’ç™ºè¡Œã—ã¦è¡Œã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
-'   Function        select_columnWise   Selectæ–‡ã‚’ç™ºè¡Œã—ã¦åˆ—ã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
-'   Function        exec                insertæ–‡ã‚„deleteæ–‡ã‚’å®Ÿè¡Œã™ã‚‹
-'   Function        rowSize             ãƒ†ãƒ¼ãƒ–ãƒ«ã®ãƒ¬ã‚³ãƒ¼ãƒ‰æ•°
-'   Function        colSize             ãƒ†ãƒ¼ãƒ–ãƒ«ã®ã‚«ãƒ©ãƒ æ•°
-'   Function        get_data            Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã®ã‚³ãƒ”ãƒ¼ã‚’è¿”ã™
-'   Function        move_data           Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’moveã—ã¦è¿”ã™
-'   Function        SQLDrivers          ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã•ã‚Œã¦ã„ã‚‹ODBCãƒ‰ãƒ©ã‚¤ãƒé…åˆ—ã‚’è¿”ã™
-'   Function        excel_expr          ç‰¹å®šã®Excelãƒ–ãƒƒã‚¯ã«æ¥ç¶šã™ã‚‹ãŸã‚ã®æ¥ç¶šæ–‡å­—åˆ—
-'   Function        mdb_expr            accessdbã®æ¥ç¶šæ–‡å­—åˆ—
-'   Function        sqlServer_expr      SQL Serverã®æ¥ç¶šæ–‡å­—åˆ—
+'   Function        connect             Ú‘±•¶š—ñ‚ğ”­s‚µ‚Äƒf[ƒ^ƒx[ƒX‚ÉÚ‘±
+'   Sub             disconnect          Ú‘±’f
+'   Sub             disconnect_all      ‚·‚×‚Ä‚ÌƒIƒuƒWƒFƒNƒg‚ÌÚ‘±‚ğ’f
+'   Sub             clear               ƒwƒbƒ_iƒJƒ‰ƒ€jƒf[ƒ^‚Æƒe[ƒuƒ‹ƒf[ƒ^‚ğÁ‹
+'   Property Get    last_connected      ÅŒã‚É¬Œ÷‚µ‚½Ú‘±•¶š—ñ‚Ìæ“¾
+'   Property Get    last_SQL            ÅŒã‚É”­s‚³‚ê‚½SQL•¶š—ñ‚Ìæ“¾
+'   Property Get    last_elapsed        ÅŒã‚É”­s‚³‚ê‚½SELECT•¶‚Å‚©‚©‚Á‚½ŠÔ (ƒ~ƒŠ•b)
+'   Property Get    last_execError      ÅŒã‚É”­s‚³‚ê‚½exec•¶‚ÌƒGƒ‰[s
+'   Function        tableList           ƒe[ƒuƒ‹ˆê——æ“¾
+'   Function        tableAttribute      ƒe[ƒuƒ‹‚Ì Attribute
+'   Function        read_header         Select•¶‚ğ”­s‚µ‚Äƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğƒƒ“ƒo‚ÉŠi”[‚·‚é
+'   Function        get_header          ƒƒ“ƒo‚ÉŠi”[‚³‚ê‚½ƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğæ“¾‚·‚é
+'   Function        select_flat         Select•¶‚ğ”­s‚µ‚Ä2ŸŒ³”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+'   Function        select_rowWise      Select•¶‚ğ”­s‚µ‚Äs‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+'   Function        select_columnWise   Select•¶‚ğ”­s‚µ‚Ä—ñ‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+'   Function        exec                insert•¶‚âdelete•¶‚ğÀs‚·‚é
+'   Function        rowSize             ƒe[ƒuƒ‹‚ÌƒŒƒR[ƒh”
+'   Function        colSize             ƒe[ƒuƒ‹‚ÌƒJƒ‰ƒ€”
+'   Function        get_data            Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ÌƒRƒs[‚ğ•Ô‚·
+'   Function        move_data           Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ğmove‚µ‚Ä•Ô‚·
+'   Function        insert_expr         insert•¶
+'   Function        insert_expr_        insert•¶ijag”z—ñ‚Ü‚½‚Í2ŸŒ³”z—ñj
+'   Function        SQLDrivers          ƒCƒ“ƒXƒg[ƒ‹‚³‚ê‚Ä‚¢‚éODBCƒhƒ‰ƒCƒo”z—ñ‚ğ•Ô‚·
+'   Function        excel_expr          ExcelƒuƒbƒN‚ÉÚ‘±‚·‚é‚½‚ß‚ÌÚ‘±•¶š—ñ
+'   Function        mdb_expr            accessdb‚ÌÚ‘±•¶š—ñ
+'   Function        sqlServer_expr      SQL Server‚ÌÚ‘±•¶š—ñ
 '*********************************************************************************
 
-Private Declare PtrSafe Function terminateODBC Lib "vbODBC.dll" (ByVal n As Long) As Long
+Private Declare PtrSafe Sub terminateODBC Lib "vbODBC.dll" (ByVal n As Long)
+
+Private Declare PtrSafe Sub terminateODBC_all Lib "vbODBC.dll" ()
 
 Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
-                                        ByVal n As Long, _
-                                    ByRef rawStr As Variant) As Long
+                                        ByRef n As Long, _
+                                ByRef rawStr As Variant) As Long
 
 Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
-                                ByRef SQL As Variant, _
-                            Optional ByVal timeOutSec As Long = 0) As Variant
+                            ByRef SQL As Variant, _
+                        Optional ByVal timeOutSec As Long = 0) As Variant
 
 Private Declare PtrSafe Function selectODBC_rowWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
@@ -66,25 +71,26 @@ Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                             ByVal getNullable As Long) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
-                        (ByVal n As Long, ByRef SQLs As Variant) As Variant
-
-Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
-                                                ByVal buf As String, _
-                                            ByVal cbBufMax As Integer, _
-                                        ByRef pcchBufOut As Integer) As Byte
+                                    (ByVal n As Long, _
+                                ByRef SQLs As Variant) As Variant
 
 Private Declare PtrSafe Function table_list_all Lib "vbODBC.dll" ( _
-                                                ByVal n As Long, _
-                                            ByRef schemaName As Variant) As Variant
+                                    ByVal n As Long, _
+                                ByRef schemaName As Variant) As Variant
 
 Private Declare PtrSafe Function columnAttributes_all Lib "vbODBC.dll" ( _
-                                                ByVal n As Long, _
-                                            ByRef schemaName As Variant, _
-                                        ByRef tableName As Variant) As Variant
+                                    ByVal n As Long, _
+                                ByRef schemaName As Variant, _
+                            ByRef tableName As Variant) As Variant
+
+Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
+                                            ByVal buf As String, _
+                                        ByVal cbBufMax As Integer, _
+                                    ByRef pcchBufOut As Integer) As Byte
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
-Private connectionString    As String    ' æ¥ç¶šæ–‡å­—åˆ—
+Private connectionString    As String    ' Ú‘±•¶š—ñ
 Private mySQL_              As String
 Private myheader_           As Variant
 Private mydata_             As Variant
@@ -101,66 +107,71 @@ Private Sub Class_Terminate()
     clear
 End Sub
 
-' æ¥ç¶šæ–‡å­—åˆ—ã‚’ç™ºè¡Œã—ã¦ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ã«æ¥ç¶š
+' Ú‘±•¶š—ñ‚ğ”­s‚µ‚Äƒf[ƒ^ƒx[ƒX‚ÉÚ‘±
 Public Function connect(ByVal connectionExpr As String) As Boolean
-    myNo_ = initODBC(myNo_, connectionExpr)
-    connect = (0 <= myNo_)
+    connect = (0 <= initODBC(myNo_, connectionExpr))
     If connect Then connectionString = connectionExpr
 End Function
 
-' æ¥ç¶šæ–­
+' Ú‘±’f
 Public Sub disconnect()
-    terminateODBC myNo_
-    myNo_ = -1
+    Call terminateODBC(myNo_)
 End Sub
 
-' ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰ãƒ‡ãƒ¼ã‚¿ã¨ãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’æ¶ˆå»
+' ‚·‚×‚Ä‚ÌƒIƒuƒWƒFƒNƒg‚ğÚ‘±’f
+Public Sub disconnect_all()
+    Call terminateODBC_all
+End Sub
+
+' ƒwƒbƒ_iƒJƒ‰ƒ€jƒf[ƒ^‚Æƒe[ƒuƒ‹ƒf[ƒ^‚ğÁ‹
 Public Sub clear()
     myheader_ = Empty
     mydata_ = Empty
 End Sub
 
-' æœ€å¾Œã«æˆåŠŸã—ãŸæ¥ç¶šæ–‡å­—åˆ—ã®å–å¾—
+' ÅŒã‚É¬Œ÷‚µ‚½Ú‘±•¶š—ñ‚Ìæ“¾
 Public Property Get last_connected() As String
     last_connected = connectionString
 End Property
 
-' æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSQLæ–‡å­—åˆ—ã®å–å¾—
+' ÅŒã‚É”­s‚³‚ê‚½SQL•¶š—ñ‚Ìæ“¾
 Public Property Get last_SQL() As String
     last_SQL = mySQL_
 End Property
 
-' æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSELECTæ–‡ã§ã‹ã‹ã£ãŸæ™‚é–“ï¼ˆãƒŸãƒªç§’ï¼‰
+' ÅŒã‚É”­s‚³‚ê‚½SELECT•¶‚Å‚©‚©‚Á‚½ŠÔiƒ~ƒŠ•bj
 Public Property Get last_elapsed() As Long
     last_elapsed = laptime_
 End Property
 
-'æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸexecæ–‡ã®ã‚¨ãƒ©ãƒ¼è¡Œ
+'ÅŒã‚É”­s‚³‚ê‚½exec•¶‚ÌƒGƒ‰[s
 Public Property Get last_execError() As Variant
     last_execError = myErrorNo_
 End Property
 
-' ãƒ†ãƒ¼ãƒ–ãƒ«ä¸€è¦§å–å¾—
-Function list_tables(ByRef schemaName As Variant, _
+' ƒe[ƒuƒ‹ˆê——æ“¾
+Function tableList(ByRef schemaName As Variant, _
                         Optional ByVal type_ As String = "TABLE") As Variant
     Dim ret As Variant
     ret = table_list_all(myNo_, schemaName)
+    If IsEmpty(ret(0)) Then Exit Function
     If type_ <> "*" Then
         Dim fil As Variant
-        fil = mapF(p_equal(type_), ret(1))
-        list_tables = catC(filterR(ret(0), fil), filterR(ret(1), fil))
+        fil = mapF(p_Like(, type_), ret(1))
+        tableList = catC(filterR(ret(0), fil), filterR(ret(1), fil))
     Else
-        list_tables = catC(ret(0), ret(1))
+        tableList = catC(ret(0), ret(1))
     End If
 End Function
 
-' ãƒ†ãƒ¼ãƒ–ãƒ«ã® Attribute
-' åˆ—åã€å‹åã€ãƒ‡ãƒ¼ã‚¿é•·ã€ç²¾åº¦ã€å±æ€§ï¼ˆ1:ã‚­ãƒ¼, -1:Nullable, 0:ä»–ï¼‰
+' ƒe[ƒuƒ‹‚Ì Attribute
+' —ñ–¼AŒ^–¼Aƒf[ƒ^’·A¸“xA‘®«i1:ƒL[, -1:Nullable, 0:‘¼j
 Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
     Dim tmp As Variant
     tmp = columnAttributes_all(myNo_, schemaName, tableName)
-    tmp(2) = mapF(p_CLng, tmp(2))                                
+    If IsEmpty(tmp(0)) Then Exit Function
+    tmp(2) = mapF(p_CLng, tmp(2))
     tmp(3) = mapF(p_mult(-1, p_CLng), tmp(3))
     If 0 < sizeof(tmp(5)) Then
         tmp(3) = zipWith(p_plus, tmp(3), foldl1(p_max, product_set(p_equal, tmp(0), tmp(5)), 2))
@@ -169,16 +180,16 @@ Public Function tableAttribute(ByRef schemaName As Variant, _
     tableAttribute = subM(foldl1(p_catC, move_many(tmp(0), tmp(1), tmp(2), tmp(3))), s)
 End Function
 
-' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+' Select•¶‚ğ”­s‚µ‚Äƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğƒƒ“ƒo‚ÉŠi”[‚·‚é
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    myheader_ = columnAttributes(myNo_, sqlExpr, 0)
+    myheader_ = subM(columnAttributes(myNo_, sqlExpr, 0), , Array(0, 1))
     laptime_ = GetTickCount() - laptime_
     Set read_header = Me
 End Function
 
-' ãƒ¡ãƒ³ãƒã«æ ¼ç´ã•ã‚ŒãŸãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’å–å¾—ã™ã‚‹
+' ƒƒ“ƒo‚ÉŠi”[‚³‚ê‚½ƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğæ“¾‚·‚é
 Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Variant
     If transpose_ Then
         get_header = transpose(myheader_)
@@ -187,7 +198,7 @@ Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Vari
     End If
 End Function
 
-' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦2æ¬¡å…ƒé…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+' Select•¶‚ğ”­s‚µ‚Ä2ŸŒ³”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
 Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
@@ -197,7 +208,7 @@ Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec A
     Set select_flat = Me
 End Function
 
-' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦è¡Œã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+' Select•¶‚ğ”­s‚µ‚Äs‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
 Public Function select_rowWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
@@ -207,7 +218,7 @@ Public Function select_rowWise(ByVal sqlExpr As String, Optional ByVal timeOutSe
     Set select_rowWise = Me
 End Function
 
-' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦åˆ—ã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+' Select•¶‚ğ”­s‚µ‚Ä—ñ‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
 Public Function select_columnWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
     mySQL_ = sqlExpr
     read_header sqlExpr
@@ -217,7 +228,7 @@ Public Function select_columnWise(ByVal sqlExpr As String, Optional ByVal timeOu
     Set select_columnWise = Me
 End Function
 
-' insertæ–‡ã‚„deleteæ–‡ã‚’å®Ÿè¡Œã™ã‚‹
+' insert•¶‚âdelete•¶‚ğÀs‚·‚é
 Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     laptime_ = GetTickCount()
     If IsArray(sqlExpr) Then
@@ -229,98 +240,27 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     Set exec = Me
 End Function
 
-' ãƒ†ãƒ¼ãƒ–ãƒ«ã®ãƒ¬ã‚³ãƒ¼ãƒ‰æ•°
+' ƒe[ƒuƒ‹‚ÌƒŒƒR[ƒh”
 Public Function rowSize() As Long
     rowSize = Haskell_2_stdFun.rowSize(mydata_)
 End Function
 
-' ãƒ†ãƒ¼ãƒ–ãƒ«ã®ã‚«ãƒ©ãƒ æ•°
+' ƒe[ƒuƒ‹‚ÌƒJƒ‰ƒ€”
 Public Function colSize() As Long
     colSize = Haskell_2_stdFun.colSize(mydata_)
 End Function
 
-' Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã®ã‚³ãƒ”ãƒ¼ã‚’è¿”ã™
+' Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ÌƒRƒs[‚ğ•Ô‚·
 Public Function get_data() As Variant
     get_data = mydata_
 End Function
 
-' Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’moveã—ã¦è¿”ã™
+' Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ğmove‚µ‚Ä•Ô‚·
 Public Function move_data() As Variant
-    swapVariant move_data, mydata_
+    Call swapVariant(move_data, mydata_)
 End Function
 
-' ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã•ã‚Œã¦ã„ã‚‹ODBCãƒ‰ãƒ©ã‚¤ãƒé…åˆ—ã‚’è¿”ã™
-Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
-    Dim buf As String, ret As Byte, retL As Integer
-    buf = Space(IIf(0 < buflen, buflen, 2 * 1024))
-    ret = SQLGetInstalledDrivers(buf, Len(buf), retL)
-    SQLDrivers = Split(left(buf, retL - 2), Chr(0))
-End Function
-
-' ç‰¹å®šã®Excelãƒ–ãƒƒã‚¯ã«æ¥ç¶šã™ã‚‹ãŸã‚ã®æ¥ç¶šæ–‡å­—åˆ—
-Public Function excel_expr(ByVal bookName As String) As String
-    Dim drivers As Variant
-    Dim i As Variant
-    excel_expr = "Microsoft Excel Driver"
-    drivers = SQLDrivers
-    permutate drivers, reverse(sortIndex(mapF(p_len, drivers)))
-    i = find_pred(p_equal(excel_expr), mapF(p_left(, Len(excel_expr)), drivers))
-    If i <= UBound(drivers) Then
-        excel_expr = "DBA=R; Driver={" & drivers(i) & "}; DBQ="
-        excel_expr = excel_expr & bookName
-    Else
-        excel_expr = ""
-    End If
-End Function
-
-'----------------------------------------------------
-'SQL Serverä»¥å¤–
-' "DBA=R; Driver={}; DBQ=; UID=; PWD="
-'SQL Server
-' "Trusted_Connection=YES; Driver={}; DBQ=; UID=; PWD="
-'----------------------------------------------------
-'Driver={Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)}    DBA = R
-'   SELECT * FROM [Sheet1$A1:D10]
-'----------------------------------------------------
-'Microsoft Access Driver (*.mdb, *.accdb)
-'Microsoft Excel Driver (*.xls, *.xlsx, *.xlsm, *.xlsb)
-'Oracle in OraCleien11g_home1
-'SQL Server Native Client 10.0
-'----------------------------------------------------
-'select * from all_tables
-'select * from user_views
-
-' accessdbã®æ¥ç¶šæ–‡å­—åˆ—
-Public Function mdb_expr(ByVal dbName As String) As String
-    Dim drivers As Variant
-    Dim i As Variant
-    mdb_expr = "DBA=R; Driver={Microsoft Access Driver (*.mdb, *.accdb)}; DBQ="
-    mdb_expr = mdb_expr & dbName
-    'select * from MSysNameMap
-End Function
-
-' SQL Serverã®æ¥ç¶šæ–‡å­—åˆ—
-Public Function sqlServer_expr(ByVal server As String, _
-                               ByVal dbName As String, _
-                               Optional ByVal uid As String = "", _
-                               Optional ByVal pwd As String = "") As String
-    Dim drivers As Variant
-    Dim i As Variant
-    sqlServer_expr = "Driver={SQL Server Native Client 11.0};"
-    If 0 = Len(uid) Then
-        sqlServer_expr = sqlServer_expr & " Trusted_Connection=YES;"
-    End If
-    sqlServer_expr = sqlServer_expr & " Server=" & server & "; DATABASE=" & dbName
-    If 0 < Len(uid) Then
-        sqlServer_expr = sqlServer_expr & "; UID=" & uid
-    End If
-    If 0 < Len(pwd) Then
-        sqlServer_expr = sqlServer_expr & "; PWD=" & pwd
-    End If
-    ' select * from sysobjects where xtype = 'U'
-End Function
-
-' insertæ–‡
+' insert•¶
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As String
@@ -350,7 +290,7 @@ Public Function insert_expr(ByVal table_name As String, _
             ");"
 End Function
 
-' insertæ–‡ï¼ˆjagé…åˆ—ã¾ãŸã¯2æ¬¡å…ƒé…åˆ—ï¼‰
+' insert•¶ijag”z—ñ‚Ü‚½‚Í2ŸŒ³”z—ñj
 Public Function insert_expr_(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As Variant
@@ -367,4 +307,59 @@ Public Function insert_expr_(ByVal table_name As String, _
         Next i
     End If
     swapVariant insert_expr_, ret
+End Function
+
+' ƒCƒ“ƒXƒg[ƒ‹‚³‚ê‚Ä‚¢‚éODBCƒhƒ‰ƒCƒo”z—ñ‚ğ•Ô‚·
+Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
+    Dim buf As String, ret As Byte, retL As Integer
+    buf = Space(IIf(0 < buflen, buflen, 2 * 1024))
+    ret = SQLGetInstalledDrivers(buf, Len(buf), retL)
+    SQLDrivers = Split(left(buf, retL - 2), vbNullChar)
+End Function
+
+' ExcelƒuƒbƒN‚ÉÚ‘±‚·‚é‚½‚ß‚ÌÚ‘±•¶š—ñ
+Public Function excel_expr(ByVal bookName As String) As String
+    Dim drivers As Variant
+    Dim i As Variant
+    excel_expr = "Microsoft Excel Driver"
+    drivers = SQLDrivers
+    permutate drivers, reverse(sortIndex(mapF(p_len, drivers)))
+    i = find_pred(p_equal(excel_expr, p_left(, Len(excel_expr))), drivers)
+    If i <= UBound(drivers) Then
+        excel_expr = "DBA=R; Driver={" & drivers(i) & "}; DBQ="
+        excel_expr = excel_expr & bookName
+    Else
+        excel_expr = ""
+    End If
+    '               SELECT * FROM [Sheet1$A1:D10]
+End Function
+
+' accessdb‚ÌÚ‘±•¶š—ñ
+Public Function mdb_expr(ByVal dbName As String) As String
+    Dim drivers As Variant
+    Dim i As Variant
+    mdb_expr = "DBA=R; Driver={Microsoft Access Driver (*.mdb, *.accdb)}; DBQ="
+    mdb_expr = mdb_expr & dbName
+    '               SELECT * FROM MSysNameMap
+End Function
+
+' SQL Server‚ÌÚ‘±•¶š—ñ
+Public Function sqlServer_expr(ByVal server As String, _
+                               ByVal dbName As String, _
+                               Optional ByVal uid As String = "", _
+                               Optional ByVal pwd As String = "") As String
+    Dim drivers As Variant
+    Dim i As Variant
+    sqlServer_expr = "Driver={SQL Server Native Client 11.0};"
+    If 0 = Len(uid) Then
+        sqlServer_expr = sqlServer_expr & " Trusted_Connection=YES;"
+    End If
+    sqlServer_expr = sqlServer_expr & " Server=" & server & "; DATABASE=" & dbName
+    If 0 < Len(uid) Then
+        sqlServer_expr = sqlServer_expr & "; UID=" & uid
+    End If
+    If 0 < Len(pwd) Then
+        sqlServer_expr = sqlServer_expr & "; PWD=" & pwd
+    End If
+    '               SELECT * FROM sysobjects WHERE xtype = 'U'
 End Function

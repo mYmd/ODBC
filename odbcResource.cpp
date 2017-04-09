@@ -6,30 +6,40 @@
 
 namespace
 {
-    RETCODE
-        do_SQLDescribeCol(  const odbc_raii_statement&,
-                            UWORD           ,
-                            TCHAR*          ,
-                            SWORD           ,
-                            SQLSMALLINT*    ,
-                            SQLSMALLINT*    ,
-                            SQLULEN*        ,
-                            SQLSMALLINT*    ,
-                            SQLSMALLINT*    );
-    RETCODE
-        do_SQLBindCol(  const odbc_raii_statement&  ,
-                        UWORD                       ,
-                        UCHAR*                      ,
-                        std::size_t                 ,
-                        SQLLEN*                     );
+    RETCODE do_SQLDescribeCol(  const odbc_raii_statement&,
+                                UWORD           ,
+                                TCHAR*          ,
+                                SWORD           ,
+                                SQLSMALLINT*    ,
+                                SQLSMALLINT*    ,
+                                SQLULEN*        ,
+                                SQLSMALLINT*    ,
+                                SQLSMALLINT*    );
+
+    RETCODE do_SQLBindCol(  const odbc_raii_statement&  ,
+                            UWORD                       ,
+                            UCHAR*                      ,
+                            std::size_t                 ,
+                            SQLLEN*                     );
+
+    bool too_late_to_destruct = false;
 }
+
+//****************************************************************
+// for DLL_PROCESS_DETACH case of DllMain function
+void Too_Late_To_Destruct()
+{
+    too_late_to_destruct = true;
+}
+//****************************************************************
 
 odbc_raii_env::odbc_raii_env() : henv(0)
 {   }
 
 odbc_raii_env::~odbc_raii_env()
 {
-    SQLFreeEnv(henv);
+    if (!too_late_to_destruct)
+        SQLFreeEnv(henv);
 }
 
 void odbc_raii_env::AllocHandle()
@@ -46,14 +56,18 @@ odbc_raii_connect::odbc_raii_connect() : hdbc(0)
 
 odbc_raii_connect::~odbc_raii_connect()
 {
-    ::SQLDisconnect(hdbc);
-    ::SQLFreeConnect(hdbc);
+    if (!too_late_to_destruct)
+    {
+        ::SQLDisconnect(hdbc);
+        ::SQLFreeConnect(hdbc);
+    }
 }
 
 void odbc_raii_connect::AllocHandle(const odbc_raii_env& env)
 {
-    auto const expr = [=](HENV x){ return SQLAllocHandle(SQL_HANDLE_DBC, x, &hdbc); };
-    RETCODE const rc = env.invoke(expr);
+    RETCODE const rc = env.invoke(
+        [=](HENV x) { return ::SQLAllocHandle(SQL_HANDLE_DBC, x, &hdbc); }
+    );
     if (SQL_SUCCESS != rc) throw rc;
 }
 
@@ -63,10 +77,11 @@ odbc_raii_statement::odbc_raii_statement() : hstmt(0)
 
 odbc_raii_statement::~odbc_raii_statement()
 {
-    ::SQLFreeStmt(hstmt, SQL_DROP);
+    if (!too_late_to_destruct)
+        ::SQLFreeStmt(hstmt, SQL_DROP);
 }
 
-odbc_raii_statement::tstring
+tstring
 odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_connect& con)
 {
     if (hstmt)  ::SQLFreeStmt(hstmt, SQL_DROP);
@@ -88,8 +103,9 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
                 };
     auto const r1 = con.invoke(expr1);
     ucOutConnectStr[ConOut] = _T('\0');
-    auto expr2 = [=](HDBC x){ return ::SQLAllocHandle(SQL_HANDLE_STMT, x, &hstmt); };
-    auto const r2 = con.invoke(expr2);
+    auto const r2 = con.invoke(
+        [=](HDBC x) { return ::SQLAllocHandle(SQL_HANDLE_STMT, x, &hstmt); }
+    );
     if ( r2!=SQL_SUCCESS )  throw r2;
     return tstring(ucOutConnectStr);
 }
@@ -100,8 +116,28 @@ cursor_colser::cursor_colser(const odbc_raii_statement& h) : h_(h)
 
 cursor_colser::~cursor_colser()
 {
-    auto const expr = [](HSTMT x){ return SQLCloseCursor(x); };
-    h_.invoke(expr);
+    h_.invoke(
+        [](HSTMT x) { return ::SQLCloseCursor(x); }
+    );
+}
+
+//********************************************************
+
+odbc_set::odbc_set(const tstring& connectName, __int32& myNo) : pNo{ &myNo }
+{
+    env.AllocHandle();
+    con.AllocHandle(env);
+    st.AllocHandle(connectName, con);
+}
+
+odbc_set::~odbc_set()
+{
+    if (!too_late_to_destruct)  *pNo = -1;
+}
+
+odbc_raii_statement&  odbc_set::stmt()
+{
+    return st;
 }
 
 //********************************************************
@@ -110,8 +146,9 @@ RETCODE
 odbc_raii_select::execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) const
 {
     SQLTCHAR* sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
-    auto const expr = [=](HSTMT x){ return SQLExecDirect(x, sql, SQL_NTS); };
-    return stmt.invoke(expr);
+    return stmt.invoke(
+        [=](HSTMT x) { return ::SQLExecDirect(x, sql, SQL_NTS); }
+    );
 }
 
 SQLSMALLINT
@@ -134,8 +171,9 @@ odbc_raii_select::columnAttribute(  const tstring&                  sql_expr    
     SQLSMALLINT nresultcols = 0;
     {
         SQLSMALLINT* pl = &nresultcols;
-        auto const expr = [=](HSTMT x){ return SQLNumResultCols(x, pl); };
-        RETCODE const rc = stmt.invoke(expr);
+        RETCODE const rc = stmt.invoke(
+            [=](HSTMT x) { return ::SQLNumResultCols(x, pl); }
+        );
         if (SQL_SUCCESS != rc) throw rc;
     }
     colname.clear();    colname.resize(nresultcols);
@@ -287,9 +325,8 @@ namespace
                         std::size_t                 bufsize     ,
                         SQLLEN*                     datastrleni )
     {
-        auto const expr = [=](HSTMT x){ 
-            return ::SQLBindCol(x, colnumber, SQL_C_CHAR, datai, bufsize, datastrleni);
-        };
-        return stmt.invoke(expr);
+        return stmt.invoke(
+            [=](HSTMT x) { return ::SQLBindCol(x, colnumber, SQL_C_CHAR, datai, bufsize, datastrleni); }
+        );
     }
 }

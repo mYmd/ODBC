@@ -1,11 +1,12 @@
-; vbODBC.def : DLL ç”¨ã®ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿å®£è¨€
+; vbODBC.def : DLL —p‚Ìƒ‚ƒWƒ…[ƒ‹ ƒpƒ‰ƒ[ƒ^éŒ¾
 
 LIBRARY      "vbODBC"
 
 EXPORTS
-    ; æ˜ç¤ºçš„ãªã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆã¯ã“ã“ã¸è¨˜è¿°ã§ãã¾ã™
+    ; –¾¦“I‚ÈƒGƒNƒXƒ|[ƒg‚Í‚±‚±‚Ö‹Lq‚Å‚«‚Ü‚·
 
 	terminateODBC = terminateODBC
+	terminateODBC_all = terminateODBC_all
 	initODBC = initODBC
 	selectODBC = selectODBC
 	selectODBC_rowWise = selectODBC_rowWise

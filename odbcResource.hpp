@@ -13,7 +13,7 @@
 
 #pragma comment(lib, "odbccp32.lib")
 
-//http://www.happy2-island.com/access/gogo03/capter00416.shtml
+using tstring = std::basic_string<TCHAR>;
 
 //**************************************************************
 class odbc_raii_env	{
@@ -55,7 +55,6 @@ class odbc_raii_statement	{
 	odbc_raii_statement& operator =(const odbc_raii_statement&) = delete;
 	odbc_raii_statement& operator =(odbc_raii_statement&&) = delete;
 public:
-	using tstring = std::basic_string <TCHAR> ;
 	odbc_raii_statement();
 	~odbc_raii_statement();
 	tstring AllocHandle(const tstring& connectName, const odbc_raii_connect& con);
@@ -73,13 +72,25 @@ public:
 };
 
 //**************************************************************
+
+class odbc_set {
+    odbc_raii_env       env;
+    odbc_raii_connect   con;
+    odbc_raii_statement st;
+    __int32*            pNo;
+public:
+    odbc_set(const tstring& connectName, __int32& myNo);
+    ~odbc_set();
+    odbc_raii_statement&  stmt();
+};
+
+//**************************************************************
 class odbc_raii_select	{
 	odbc_raii_select(const odbc_raii_select&) = delete;
 	odbc_raii_select(odbc_raii_select&&) = delete;
 	odbc_raii_select& operator =(const odbc_raii_select&) = delete;
 	odbc_raii_select& operator =(odbc_raii_select&&) = delete;
 public:
-	using tstring = odbc_raii_statement::tstring;
 	using result_type = std::vector<std::vector<tstring>>;
     static const std::size_t    StrSizeofColumn = 16384;
     static const std::size_t    ColumnNameLen = 256;
