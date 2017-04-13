@@ -151,16 +151,13 @@ End Property
 
 ' ƒe[ƒuƒ‹ˆê——æ“¾
 Function tableList(ByRef schemaName As Variant, _
-                        Optional ByVal type_ As String = "TABLE") As Variant
+                        Optional ByVal type_ As String = "") As Variant
     Dim ret As Variant
     ret = table_list_all(myNo_, schemaName)
     If IsEmpty(ret(0)) Then Exit Function
-    If type_ <> "*" Then
-        Dim fil As Variant
-        fil = mapF(p_Like(, type_), ret(1))
-        tableList = catC(filterR(ret(0), fil), filterR(ret(1), fil))
-    Else
-        tableList = catC(ret(0), ret(1))
+    tableList = catC(catC(ret(0), ret(1)), ret(2))
+    If type_ <> "" Then
+        tableList = filterR(tableList, mapF(p_Like(, type_), ret(2)))
     End If
 End Function
 
