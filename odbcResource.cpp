@@ -330,3 +330,37 @@ namespace
         );
     }
 }
+
+//*************************************************
+
+tstring getTypeStr(SQLSMALLINT type)
+{
+    tstring ret;
+    switch (type)
+    {
+    case SQL_CHAR:              ret = tstring(_T("CHAR"));          break;
+    case SQL_NUMERIC:           ret = tstring(_T("NUMERIC"));       break;
+    case SQL_DECIMAL:           ret = tstring(_T("DECIMAL"));       break;
+    case SQL_INTEGER:           ret = tstring(_T("INTEGER"));       break;
+    case SQL_SMALLINT:          ret = tstring(_T("SMALLINT"));      break;
+    case SQL_FLOAT:             ret = tstring(_T("FLOAT"));         break;
+    case SQL_REAL:              ret = tstring(_T("REAL"));          break;
+    case SQL_DOUBLE:            ret = tstring(_T("DOUBLE"));        break;
+    case SQL_VARCHAR:           ret = tstring(_T("VARCHAR"));       break;
+    case SQL_TYPE_DATE:         ret = tstring(_T("TYPE_DATE"));     break;
+    case SQL_TYPE_TIME:         ret = tstring(_T("TYPE_TIME"));     break;
+    case SQL_TYPE_TIMESTAMP:    ret = tstring(_T("TYPE_TIMESTAMP")); break;
+    case SQL_WLONGVARCHAR:      ret = tstring(_T("WLONGVARCHAR"));  break;
+    case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR"));      break;
+    case SQL_WCHAR:             ret = tstring(_T("WCHAR"));         break;
+    case SQL_BIT:               ret = tstring(_T("BIT"));           break;
+    case SQL_TINYINT:           ret = tstring(_T("TINYINT"));       break;
+    case SQL_BIGINT:            ret = tstring(_T("BIGINT"));        break;
+    case SQL_LONGVARBINARY:     ret = tstring(_T("LONGVARBINARY")); break;
+    case SQL_VARBINARY:         ret = tstring(_T("VARBINARY"));     break;
+    case SQL_BINARY:            ret = tstring(_T("BINARY"));        break;
+    case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR"));   break;
+    default:                    ret = tstring(_T("?"));
+    }
+    return ret;
+}

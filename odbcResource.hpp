@@ -122,3 +122,67 @@ public:
                         ) const;
 };
 
+//*******************************************************
+tstring getTypeStr(SQLSMALLINT);
+
+// ÉJÉ^ÉçÉOä÷êî
+template <typename FC, typename FP>
+std::size_t catalogValue(
+    FC&&                        catalog_func,       //
+    odbc_raii_statement const&  st,
+    SQLUSMALLINT                ColumnNumber,
+    FP&&                        push_back_func      // <- TCHAR const* p
+)
+{
+    cursor_colser   c_closer(st);
+    auto result = st.invoke(std::forward<FC>(catalog_func));
+    if (SQL_SUCCESS != result)
+        return 0;
+    SQLSMALLINT nresultcols = 0;
+    {
+        SQLSMALLINT* pl = &nresultcols;
+        auto result = st.invoke(
+            [=](HSTMT x) { return ::SQLNumResultCols(x, pl); }
+        );
+    }
+    SQLCHAR  rgbValue[odbc_raii_select::ColumnNameLen];
+    SQLLEN   pcbValue;
+    {
+        auto p_rgbValue = static_cast<SQLPOINTER>(rgbValue);
+        auto p_pcbValue = &pcbValue;
+        for (auto j = 0; j < nresultcols; ++j)
+        {
+            if (j == ColumnNumber)    continue;
+            auto result = st.invoke(
+                [=](HSTMT x) { return ::SQLBindCol(x, j, SQL_C_CHAR, NULL, 0, NULL); }
+            );
+        }
+        auto result = st.invoke(
+            [=](HSTMT x) { return ::SQLBindCol(x,
+                ColumnNumber,      //COLUMN_NAME
+                SQL_C_CHAR,
+                p_rgbValue,
+                odbc_raii_select::ColumnNameLen,
+                p_pcbValue);
+        }
+        );
+        if (SQL_SUCCESS != result)
+            return 0;
+    }
+    auto SQLFetch_expr = [=](HSTMT x) { return ::SQLFetch(x); };
+    std::vector<VARIANT> vec;
+    std::size_t counter{0};
+    while (true)
+    {
+        auto fetch_result = st.invoke(SQLFetch_expr);
+        if ((SQL_SUCCESS != fetch_result) && (SQL_SUCCESS_WITH_INFO != fetch_result))
+            break;
+        TCHAR tcharBuffer[odbc_raii_select::ColumnNameLen];
+        int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, odbc_raii_select::ColumnNameLen);
+        tstring const str(tcharBuffer);
+        TCHAR const* p = str.empty() ? 0 : &str[0];
+        std::forward<FP>(push_back_func)(p);
+        ++counter;
+    }
+    return counter;
+}
