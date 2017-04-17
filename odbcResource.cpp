@@ -142,156 +142,15 @@ odbc_raii_statement&  odbc_set::stmt()
 
 //********************************************************
 
-RETCODE
-odbc_raii_select::execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) const
+RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt)
 {
     SQLTCHAR* sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
     return stmt.invoke(
         [=](HSTMT x) { return ::SQLExecDirect(x, sql, SQL_NTS); }
     );
 }
-
-SQLSMALLINT
-odbc_raii_select::columnAttribute(  const tstring&                  sql_expr        ,
-                                    const odbc_raii_statement&      stmt            ,
-                                    std::vector<column_name_type>&  colname         ,
-                                    std::vector<SQLSMALLINT>&       colnamelen      ,
-                                    std::vector<SQLULEN>&           collen          ,
-                                    std::vector<SQLSMALLINT>&       nullable        ,
-                                    std::vector<SQLSMALLINT>&       coltype         ,
-                                    std::vector<SQLSMALLINT>&       scale           ,
-                                    std::vector<SQLLEN>&            datastrlen      ,
-                                    std::vector<std::basic_string<UCHAR>>*  pBuffer
-                                  ) const
-{
-    {
-        auto const rc = this->execDirect(sql_expr, stmt);
-        if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)  throw rc;
-    }
-    SQLSMALLINT nresultcols = 0;
-    {
-        SQLSMALLINT* pl = &nresultcols;
-        RETCODE const rc = stmt.invoke(
-            [=](HSTMT x) { return ::SQLNumResultCols(x, pl); }
-        );
-        if (SQL_SUCCESS != rc) throw rc;
-    }
-    colname.clear();    colname.resize(nresultcols);
-    colnamelen.clear(); colnamelen.resize(nresultcols);
-    collen.clear();     collen.resize(nresultcols);
-    nullable.clear();   nullable.resize(nresultcols);
-    coltype.clear();    coltype.resize(nresultcols);
-    scale.clear();      scale.resize(nresultcols);
-    datastrlen.clear(); datastrlen.resize(nresultcols);
-    if ( pBuffer )
-    {
-        pBuffer->clear();
-        pBuffer->resize(nresultcols);
-    }
-    for (int j = 0; j < nresultcols; ++j )
-    {
-        RETCODE rc = do_SQLDescribeCol( stmt                            ,
-                                        static_cast<UWORD>(j+1)         ,
-                                        colname[j].data()               ,
-                                        ColumnNameLen * sizeof(TCHAR)   ,
-                                        &colnamelen[j]                  ,
-                                        &coltype[j]                     ,
-                                        &collen[j]                      ,
-                                        &scale[j]                       ,
-                                        &nullable[j]                    );
-        if (pBuffer)
-        {
-            auto& buffer = *pBuffer;
-            auto dlen = collen[j];
-            buffer[j].resize((0 < dlen && dlen < StrSizeofColumn) ? dlen+1 : StrSizeofColumn);
-            rc = do_SQLBindCol( stmt                            , 
-                                static_cast<UWORD>(j+1)         ,
-                                &buffer[j][0]                   ,
-                                buffer[j].size() * sizeof(UCHAR),
-                                &datastrlen[j]                  );
-        }
-    }
-    return nresultcols;
-}
-
-odbc_raii_select::result_type
-odbc_raii_select::select(   int                             timeOutSec,
-                            const tstring&                  sql_expr,
-                            const odbc_raii_statement&      stmt,
-                            std::vector<column_name_type>*  pColname,
-                            std::vector<SQLSMALLINT>*       pColnamelen,
-                            std::vector<SQLULEN>*           pCollen,
-                            std::vector<SQLSMALLINT>*       pNullable,
-                            std::vector<SQLSMALLINT>*       pColtype,
-                            std::vector<SQLSMALLINT>*       pScale,
-                            std::vector<SQLLEN>*            pDatastrlen
-                         ) const
-{
-    std::vector<column_name_type>   colname;
-    std::vector<SQLSMALLINT>        colnamelen;
-    std::vector<SQLULEN>            collen;
-    std::vector<SQLSMALLINT>        nullable;
-    std::vector<SQLSMALLINT>        coltype;
-    std::vector<SQLSMALLINT>        scale;
-    std::vector<SQLLEN>             datastrlen;
-    std::vector<std::basic_string<UCHAR>>   buffer;
-    SQLSMALLINT nresultcols = this->columnAttribute(  sql_expr    ,
-                                                stmt        ,
-                                                colname     ,
-                                                colnamelen  ,
-                                                collen      ,
-                                                nullable    ,
-                                                coltype     ,
-                                                scale       ,
-                                                datastrlen  ,
-                                                &buffer     );
-    TCHAR tcharBuffer[StrSizeofColumn];
-    result_type ret_vec;
-    std::vector<tstring>    record(nresultcols);
-    std::size_t rowcounter = 0;
-    DWORD start = ::GetTickCount();
-    auto const expr = [](HSTMT x){ return SQLFetch(x); };
-    while ( true )
-    {
-        for ( int j = 0; j < nresultcols; ++j )
-            buffer[j][0] = '\0';
-        RETCODE const rc = stmt.invoke(expr);
-        if ( rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO )
-        {
-            for ( int j = 0; j < nresultcols; ++j )
-            {
-                if ( 0 < datastrlen[j] && datastrlen[j] < long(buffer[j].size()) )
-                    buffer[j][datastrlen[j]] = '\0';
-                int mb = ::MultiByteToWideChar( CP_ACP                  ,
-                                                MB_PRECOMPOSED          ,
-                                                (LPCSTR)&buffer[j][0]   ,
-                                                -1                      ,
-                                                tcharBuffer             ,
-                                                StrSizeofColumn         );
-                record[j] = tcharBuffer;
-            }
-        }
-        else
-        {
-            break;
-        }
-        ++rowcounter;
-        ret_vec.push_back(record);
-        if ( rowcounter % 100 == 0 && ( 0 < timeOutSec ) && (1000*timeOutSec < static_cast<int>(GetTickCount() -start)) )
-        {
-            break;  //            throw static_cast<RETCODE>(-9999);
-        }
-    }
-    if ( pColname )     { *pColname = std::move(colname); }
-    if ( pColnamelen )  { *pCollen = std::move(collen); }
-    if ( pNullable )    { *pNullable = std::move(nullable); }
-    if ( pColtype )     { *pColtype = std::move(coltype); }
-    if ( pScale )       { *pScale = std::move(scale); }
-    if ( pDatastrlen )  { *pDatastrlen = std::move(datastrlen); }
-    return ret_vec;
-}
-
 //********************************************************
+
 namespace 
 {
     RETCODE

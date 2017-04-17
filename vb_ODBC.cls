@@ -53,22 +53,21 @@ Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
 Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                             ByRef SQL As Variant, _
-                        Optional ByVal timeOutSec As Long = 0) As Variant
+                        ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function selectODBC_rowWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef SQL As Variant, _
-                            Optional ByVal timeOutSec As Long = 0) As Variant
+                            ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function selectODBC_columnWise Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef SQL As Variant, _
-                            Optional ByVal timeOutSec As Long = 0) As Variant
+                            ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
-                                ByRef SQL As Variant, _
-                            ByVal getNullable As Long) As Variant
+                                ByRef SQL As Variant) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
@@ -168,8 +167,7 @@ Public Function tableAttribute(ByRef schemaName As Variant, _
     Dim tmp As Variant
     tmp = columnAttributes_all(myNo_, schemaName, tableName)
     If IsEmpty(tmp(0)) Then Exit Function
-    tmp(2) = mapF(p_CLng, tmp(2))
-    tmp(3) = mapF(p_mult(-1, p_CLng), tmp(3))
+    tmp(3) = mapF(p_mult(-1), tmp(3))
     If 0 < sizeof(tmp(5)) Then
         tmp(3) = zipWith(p_plus, tmp(3), foldl1(p_max, product_set(p_equal, tmp(0), tmp(5)), 2))
     End If
@@ -181,7 +179,8 @@ End Function
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    myheader_ = subM(columnAttributes(myNo_, sqlExpr, 0), , Array(0, 1))
+    myheader_ = columnAttributes(myNo_, sqlExpr)
+    myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set read_header = Me
 End Function
@@ -196,31 +195,31 @@ Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Vari
 End Function
 
 ' Select•¶‚ð”­s‚µ‚Ä2ŽŸŒ³”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-Public Function select_flat(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
+Public Function select_flat(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
-    read_header sqlExpr
     laptime_ = GetTickCount()
-    mydata_ = selectODBC(myNo_, sqlExpr, timeOutSec)
+    mydata_ = selectODBC(myNo_, sqlExpr, myheader_)
+    myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set select_flat = Me
 End Function
 
 ' Select•¶‚ð”­s‚µ‚Äs‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-Public Function select_rowWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
+Public Function select_rowWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
-    read_header sqlExpr
     laptime_ = GetTickCount()
-    mydata_ = selectODBC_rowWise(myNo_, sqlExpr, timeOutSec)
+    mydata_ = selectODBC_rowWise(myNo_, sqlExpr, myheader_)
+    myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set select_rowWise = Me
 End Function
 
 ' Select•¶‚ð”­s‚µ‚Ä—ñ‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-Public Function select_columnWise(ByVal sqlExpr As String, Optional ByVal timeOutSec As Long = 0) As vb_ODBC
+Public Function select_columnWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
-    read_header sqlExpr
     laptime_ = GetTickCount()
-    mydata_ = selectODBC_columnWise(myNo_, sqlExpr, timeOutSec)
+    mydata_ = selectODBC_columnWise(myNo_, sqlExpr, myheader_)
+    myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set select_columnWise = Me
 End Function
@@ -279,11 +278,11 @@ Public Function insert_expr(ByVal table_name As String, _
     insert_expr = "INSERT INTO " & table_name
     If Dimension(attr) = 1 Then
         insert_expr = insert_expr & " (" & _
-                    join(filterR(attr, flag), ",") & _
+                    Join(filterR(attr, flag), ",") & _
                 ")"
     End If
     insert_expr = insert_expr & " VALUES(" & _
-                join(filterR(tmp, flag), ",") & _
+                Join(filterR(tmp, flag), ",") & _
             ");"
 End Function
 
