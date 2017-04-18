@@ -65,9 +65,7 @@ namespace {
             };
             VARIANT colname_array = vec2VArray(std::move(v_colname), bstr_trans);
             VARIANT coltype_array = vec2VArray(std::move(v_coltype), type_trans);
-            std::vector<VARIANT> vec;
-            vec.push_back(colname_array);
-            vec.push_back(coltype_array);
+            std::vector<VARIANT> vec{colname_array, coltype_array};
             ::VariantClear(&v);
             std::swap(v, vec2VArray(std::move(vec)));
         }
@@ -231,41 +229,15 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
     BSTR bstr = getBSTR(SQL);
     if ( !bstr || myNo < 0 || vODBCStmt.size() <= myNo )    return ret;
     //------------------------
-    std::vector<column_name_type>   v_colname;
-    std::vector<SQLSMALLINT>        v_coltype;
-    auto write_func = [&](  std::vector<column_name_type>&  colname,
-                        std::vector<SQLSMALLINT>&           ,
-                    std::vector<SQLULEN>&                   ,
-                std::vector<SQLSMALLINT>&                   ,
-                    std::vector<SQLSMALLINT>&               coltype,
-                        std::vector<SQLSMALLINT>&           ,
-                            std::vector<SQLLEN>&            )
-    {
-        v_colname = std::move(colname);
-        v_coltype = std::move(coltype);
-    };
-    cursor_colser   c_closer(vODBCStmt[myNo]->stmt());
-    SQLSMALLINT     len = columnAttribute(  vODBCStmt[myNo]->stmt(),
-                                            tstring(bstr),
-                                            nullptr,
-                                            write_func);
+    header_getter                   header_func;
+    SQLSMALLINT     len = columnAttribute(  vODBCStmt[myNo]->stmt() ,
+                                        tstring(bstr)           ,
+                                    nullptr                 ,
+                                header_func             ,
+                            true                    );
     if ( len == 0 )     return ret;
-    auto bstr_trans = [](VARIANT& elem, column_name_type& c)   {
-        elem.vt = VT_BSTR;
-        elem.bstrVal = SysAllocString(c.data());
-    };
-    auto type_trans = [](VARIANT& elem, SQLSMALLINT t) {
-        elem.vt = VT_BSTR;
-        tstring const str = getTypeStr(t);
-        TCHAR const* p = str.empty()? nullptr : &str[0];
-        elem.bstrVal = SysAllocString(p);
-    };
-    VARIANT colname_array   = vec2VArray(std::move(v_colname), bstr_trans);
-    VARIANT coltype_array   = vec2VArray(std::move(v_coltype), type_trans);
-    std::vector<VARIANT> vec;
-    vec.push_back(colname_array);
-    vec.push_back(coltype_array);
-    return vec2VArray(std::move(vec));
+    header_func.get(ret);
+    return ret;
 }
 
 VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
@@ -283,7 +255,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         ::SafeArrayGetUBound(pArray, 1, &ub);
         bounds.cElements = 1 + ub - bounds.lLbound;
     }
-    cursor_colser       c_closer(vODBCStmt[myNo]->stmt());
+    cursor_colser       c_closer(vODBCStmt[myNo]->stmt(), true);
     VARIANT elem;
     ::VariantInit(&elem);
     std::vector<LONG> errorNo;
@@ -325,8 +297,9 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
     };
     auto const& st = vODBCStmt[myNo]->stmt();
     std::vector<VARIANT> vec;
+    TCHAR const zeroStr [] {_T("8")};
     auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p));
+        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: zeroStr));
     };
     catalogValue(table_func, st, 2, push_back_func);    //TABLE_SCHEM
     VARIANT schem_name = vec2VArray(std::move(vec));
@@ -365,8 +338,9 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
     auto const& st = vODBCStmt[myNo]->stmt();
     std::vector<VARIANT> vec;
     auto value_type = SQL_CHAR;
+    TCHAR const zeroStr[]{ _T("") };
     auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(value_type, p));
+        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p ? p : zeroStr));
     };
 
     catalogValue(primarykeys_func, st, 4, push_back_func);  // KEY_NAME

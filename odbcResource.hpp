@@ -66,8 +66,9 @@ public:
 //**************************************************************
 class cursor_colser	{
 	const odbc_raii_statement&	h_;
+    bool close_;
 public:
-	cursor_colser(const odbc_raii_statement& h);
+	cursor_colser(const odbc_raii_statement& h, bool b);
 	~cursor_colser();
 };
 
@@ -96,13 +97,12 @@ using result_type = std::vector<std::vector<tstring>>;
 // ÉJÉ^ÉçÉOä÷êî
 template <typename FC, typename FP>
 std::size_t catalogValue(
-    FC&&                        catalog_func,       //
-    odbc_raii_statement const&  st,
-    SQLUSMALLINT                ColumnNumber,
-    FP&&                        push_back_func      // <- TCHAR const* p
-)
+    FC&&                        catalog_func    ,   //
+    odbc_raii_statement const&  st              ,
+    SQLUSMALLINT                ColumnNumber    ,
+    FP&&                        push_back_func  )   // <- TCHAR const* p
 {
-    cursor_colser   c_closer(st);
+    cursor_colser   c_closer(st, true);
     auto result = st.invoke(std::forward<FC>(catalog_func));
     if (SQL_SUCCESS != result)
         return 0;
@@ -149,8 +149,8 @@ std::size_t catalogValue(
         if ((SQL_SUCCESS != fetch_result) && (SQL_SUCCESS_WITH_INFO != fetch_result))
             break;
         int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, ColumnNameLen);
-        tstring const str(tcharBuffer);
-        TCHAR const* p = str.empty()? nullptr: &str[0];
+        tstring str(tcharBuffer);
+        TCHAR const* p = mb ? &str[0]: nullptr;
         std::forward<FP>(push_back_func)(p);
         ++counter;
     }
@@ -163,7 +163,8 @@ template <typename F>
 SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
                         tstring const&              sql_expr,
                     std::vector<buffer_t>*      pBuffer ,
-                F&&                         write_func)
+                F&&                         write_func,
+            bool close_)
 {
     const std::size_t ColumnNameLen = 256;
     {
@@ -212,6 +213,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
                             &datastrlen[j]);
     };
     const std::size_t StrSizeofColumn = 16384;
+    cursor_colser   c_closer(stmt, close_);
     for ( j = 0; j < nresultcols; ++j )
     {
         RETCODE rc = stmt.invoke(SQLDescribeColExpr);
@@ -227,12 +229,12 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
 }
 
 template <typename FH, typename FI, typename FE, typename FA>
-std::size_t select_table(   odbc_raii_statement const& stmt, 
-                            tstring const& sql_expr , 
-                            FH&& header_func        ,
-                            FI&& init_func          , 
-                            FE&& elem_func          ,
-                            FA&& add_func           )
+std::size_t select_table(   odbc_raii_statement const& stmt , 
+                            tstring const&  sql_expr        , 
+                            FH&&            header_func     ,
+                            FI&&            init_func       , 
+                            FE&&            elem_func       ,
+                            FA&&            add_func        )
 {
     std::vector<SQLSMALLINT>        coltype;
     std::vector<SQLLEN>             datastrlen;
@@ -248,12 +250,13 @@ std::size_t select_table(   odbc_raii_statement const& stmt,
         coltype     = std::move(coltype_);
         datastrlen  = std::move(datastrlen_);
     };
-    cursor_colser   c_closer(stmt);
+    cursor_colser   c_closer(stmt, true);
     std::vector<buffer_t> buffer;
     SQLSMALLINT nresultcols = columnAttribute(  stmt        ,
                                             sql_expr    ,
                                         &buffer     , 
-                                    write_func  );
+                                    write_func  ,
+                                false       );
     if (nresultcols == 0 )          return 0;
     //-----------------------------------------------
     std::forward<FI>(init_func)(nresultcols);

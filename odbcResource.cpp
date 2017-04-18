@@ -111,14 +111,15 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
 }
 
 //********************************************************
-cursor_colser::cursor_colser(const odbc_raii_statement& h) : h_(h)
-{}
+cursor_colser::cursor_colser(const odbc_raii_statement& h, bool b) : h_(h), close_(b)
+{   }
 
 cursor_colser::~cursor_colser()
 {
-    h_.invoke(
-        [](HSTMT x) { return ::SQLCloseCursor(x); }
-    );
+    if (close_)
+        h_.invoke(
+            [](HSTMT x) { return ::SQLCloseCursor(x); }
+        );
 }
 
 //********************************************************
