@@ -149,9 +149,7 @@ std::size_t catalogValue(
         if ((SQL_SUCCESS != fetch_result) && (SQL_SUCCESS_WITH_INFO != fetch_result))
             break;
         int mb = ::MultiByteToWideChar(CP_ACP, MB_PRECOMPOSED, (LPCSTR)rgbValue, -1, tcharBuffer, ColumnNameLen);
-        tstring str(tcharBuffer);
-        TCHAR const* p = mb ? &str[0]: nullptr;
-        std::forward<FP>(push_back_func)(p);
+        std::forward<FP>(push_back_func)((1 < mb) ? tcharBuffer : nullptr);
         ++counter;
     }
     return counter;
@@ -262,7 +260,6 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
     std::forward<FI>(init_func)(nresultcols);
     const std::size_t StrSizeofColumn = 16384;
     TCHAR tcharBuffer[StrSizeofColumn];
-    std::vector<tstring>    record(nresultcols);
     auto const fetch_expr = [](HSTMT x) { return SQLFetch(x); };
     std::size_t counter{0};
     while (true)
@@ -282,8 +279,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                                     -1,
                                 tcharBuffer,
                             StrSizeofColumn);
-                record[j] = tcharBuffer;
-                std::forward<FE>(elem_func)(j, tstring{tcharBuffer}, coltype[j]);
+                std::forward<FE>(elem_func)(j, (1 < mb)? tcharBuffer: nullptr, coltype[j]);
             }
             std::forward<FA>(add_func)(counter++);
         }

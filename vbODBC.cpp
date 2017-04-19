@@ -123,9 +123,8 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header
     auto init_func = [&](SQLSMALLINT c) {
         elem.resize(c);
     };
-    auto elem_func = [&](SQLSMALLINT j, tstring const& str, SQLSMALLINT coltype) {
-        TCHAR const* p = str.empty() ? 0 : &str[0];
-        elem[j] = makeVariantFromSQLType(coltype, p);
+    auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        elem[j] = makeVariantFromSQLType(coltype, str);
     };
     auto add_func = [&](std::size_t) {
         vec.push_back(elem);
@@ -155,9 +154,8 @@ VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL, VARIANT* hea
     auto init_func = [&](SQLSMALLINT c) {
         vec.resize(c);
     };
-    auto elem_func = [&](SQLSMALLINT j, tstring const& str, SQLSMALLINT coltype) {
-        TCHAR const* p = str.empty() ? 0 : &str[0];
-        vec[j].push_back(makeVariantFromSQLType(coltype, p));
+    auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        vec[j].push_back(makeVariantFromSQLType(coltype, str));
     };
     auto add_func = [&](std::size_t) {    };
     header_getter header_func;
@@ -188,9 +186,8 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, VARIANT* header)
     auto init_func = [&](SQLSMALLINT c) {
         vec.resize(c);
     };
-    auto elem_func = [&](SQLSMALLINT j, tstring const& str, SQLSMALLINT coltype) {
-        TCHAR const* p = str.empty() ? 0 : &str[0];
-        vec[j].push_back(makeVariantFromSQLType(coltype, p));
+    auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        vec[j].push_back(makeVariantFromSQLType(coltype, str));
     };
     auto add_func = [&](std::size_t) {};
     auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
@@ -280,7 +277,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return ret;
 }
 
-// 繝�繝ｼ繝悶Ν荳隕ｧ
+// テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     VARIANT ret;
@@ -315,7 +312,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
+// テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     VARIANT ret;
