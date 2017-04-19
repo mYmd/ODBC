@@ -280,7 +280,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return ret;
 }
 
-// テーブル一覧
+// 繝�繝ｼ繝悶Ν荳隕ｧ
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     VARIANT ret;
@@ -297,7 +297,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
     };
     auto const& st = vODBCStmt[myNo]->stmt();
     std::vector<VARIANT> vec;
-    TCHAR const zeroStr [] {_T("8")};
+    TCHAR const zeroStr [] {_T("")};
     auto push_back_func = [&](TCHAR const* p) {
         vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: zeroStr));
     };
@@ -315,7 +315,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// テーブルにある全カラムの属性
+// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     VARIANT ret;
