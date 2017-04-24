@@ -149,14 +149,19 @@ Public Property Get last_execError() As Variant
 End Property
 
 ' ÉeÅ[ÉuÉãàÍóóéÊìæ
-Function tableList(ByRef schemaName As Variant, _
+Function tableList(Optional ByRef schemaName As Variant, _
                         Optional ByVal type_ As String = "") As Variant
     Dim ret As Variant
-    ret = table_list_all(myNo_, schemaName)
+    ret = table_list_all(myNo_, IIf(IsMissing(schemaName), "", schemaName))
     If IsEmpty(ret(0)) Then Exit Function
-    tableList = catC(catC(ret(0), ret(1)), ret(2))
+    If IsMissing(schemaName) Then
+        tableList = catC(ret(1), ret(2))
+    Else
+        tableList = catC(catC(ret(0), ret(1)), ret(2))
+    End If
     If type_ <> "" Then
-        tableList = filterR(tableList, mapF(p_Like(, type_), ret(2)))
+        tableList = filterR(tableList, _
+                mapF(p_Like(p_StrConv(, vbLowerCase), StrConv(type_, vbLowerCase)), ret(2)))
     End If
 End Function
 
