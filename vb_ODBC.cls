@@ -17,6 +17,7 @@ Option Explicit
 '   Function        connect             接続文字列を発行してデータベースに接続
 '   Sub             disconnect          接続断
 '   Sub             disconnect_all      すべてのオブジェクトの接続を断
+'   Function        setTimeout          タイムアウトする秒数を設定
 '   Sub             clear               ヘッダ（カラム）データとテーブルデータを消去
 '   Property Get    last_connected      最後に成功した接続文字列の取得
 '   Property Get    last_SQL            最後に発行されたSQL文字列の取得
@@ -126,6 +127,7 @@ Public Sub disconnect_all()
     Call terminateODBC_all
 End Sub
 
+' タイムアウトする秒数を設定
 Public Function setTimeout(ByVal s As Long) As Boolean
     setTimeout = (0 < setQueryTimeout(myNo_, s))
 End Function
