@@ -82,6 +82,10 @@ Private Declare PtrSafe Function columnAttributes_all Lib "vbODBC.dll" ( _
                                 ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
 
+Private Declare PtrSafe Function setQueryTimeout Lib "vbODBC.dll" ( _
+                                    ByVal n As Long, _
+                                ByVal sec As Long) As Long
+
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal buf As String, _
                                         ByVal cbBufMax As Integer, _
@@ -121,6 +125,10 @@ End Sub
 Public Sub disconnect_all()
     Call terminateODBC_all
 End Sub
+
+Public Function setTimeout(ByVal s As Long) As Boolean
+    setTimeout = (0 < setQueryTimeout(myNo_, s))
+End Function
 
 ' ヘッダ（カラム）データとテーブルデータを消去
 Public Sub clear()

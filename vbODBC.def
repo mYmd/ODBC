@@ -15,3 +15,4 @@ EXPORTS
 	execODBC = execODBC
 	table_list_all = table_list_all
 	columnAttributes_all = columnAttributes_all
+	setQueryTimeout = setQueryTimeout

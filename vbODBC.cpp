@@ -112,6 +112,20 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
     return myNo;
 }
 
+__int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
+{
+    if ( myNo < 0 || vODBCStmt.size() <= myNo )
+        return 0;
+    if (sec < 0)    sec = 0;
+    auto val = static_cast<SQLULEN>(sec);
+    auto p = static_cast<SQLPOINTER>(&val);
+    auto setSTMT = [=](HSTMT x) {
+        return ::SQLSetStmtAttr(x, SQL_ATTR_QUERY_TIMEOUT, p, 0);
+    };
+    auto result = vODBCStmt[myNo]->stmt().invoke(setSTMT);
+    return (result == SQL_SUCCESS || result == SQL_SUCCESS_WITH_INFO)? sec: 0;
+}
+
 VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header)
 {
     VARIANT ret;
@@ -294,9 +308,8 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
     };
     auto const& st = vODBCStmt[myNo]->stmt();
     std::vector<VARIANT> vec;
-    TCHAR const zeroStr [] {_T("")};
     auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: zeroStr));
+        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: _T("")));
     };
     catalogValue(table_func, st, 2, push_back_func);    //TABLE_SCHEM
     VARIANT schem_name = vec2VArray(std::move(vec));
@@ -335,9 +348,8 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
     auto const& st = vODBCStmt[myNo]->stmt();
     std::vector<VARIANT> vec;
     auto value_type = SQL_CHAR;
-    TCHAR const zeroStr[]{ _T("") };
     auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p ? p : zeroStr));
+        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: _T("")));
     };
 
     catalogValue(primarykeys_func, st, 4, push_back_func);  // KEY_NAME
