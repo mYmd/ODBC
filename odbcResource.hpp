@@ -93,6 +93,26 @@ using column_name_type = std::array<TCHAR, 256>;
 using result_type = std::vector<std::vector<tstring>>;
 //********************************************************
 
+//診断メッセージ
+template <std::size_t bufferSize = 1024>
+class SQLDiagRec   {
+    SQLSMALLINT recNum;
+    SQLWCHAR SQLState[6];
+    SQLWCHAR szErrorMsg[bufferSize];
+public:
+    SQLDiagRec() : recNum{1}
+    {   SQLState[0] = _T('\0'); szErrorMsg[0] = _T('\0');   }
+    void setnum(SQLSMALLINT a)      {   recNum = a;     }
+    tstring getMessage() const      {   return szErrorMsg;  }
+    tstring getState() const        {   return SQLState;    }
+    RETCODE operator ()(HSTMT x)
+    {
+        SQLSMALLINT o_o;
+        return ::SQLGetDiagRec(SQL_HANDLE_STMT, x, recNum, SQLState, NULL, szErrorMsg, bufferSize, &o_o);
+    }
+};
+
+//********************************************************
 
 // カタログ関数
 template <typename FC, typename FP>

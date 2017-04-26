@@ -6,22 +6,6 @@
 
 namespace
 {
-    RETCODE do_SQLDescribeCol(  const odbc_raii_statement&,
-                                UWORD           ,
-                                TCHAR*          ,
-                                SWORD           ,
-                                SQLSMALLINT*    ,
-                                SQLSMALLINT*    ,
-                                SQLULEN*        ,
-                                SQLSMALLINT*    ,
-                                SQLSMALLINT*    );
-
-    RETCODE do_SQLBindCol(  const odbc_raii_statement&  ,
-                            UWORD                       ,
-                            UCHAR*                      ,
-                            std::size_t                 ,
-                            SQLLEN*                     );
-
     bool too_late_to_destruct = false;
 }
 
@@ -151,47 +135,6 @@ RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt)
     );
 }
 //********************************************************
-
-namespace 
-{
-    RETCODE
-        do_SQLDescribeCol(  const odbc_raii_statement&  stmt            ,
-                            UWORD                       colnumber       ,
-                            TCHAR*                      pcolname        ,
-                            SWORD                       sizeofcolname   ,
-                            SQLSMALLINT*                pcolnamelen     ,
-                            SQLSMALLINT*                pcoltype        ,
-                            SQLULEN*                    pcollen         ,
-                            SQLSMALLINT*                pscale          ,
-                            SQLSMALLINT*                pnullable       )
-    {
-        auto expr = [=](HSTMT x){ return ::SQLDescribeCol( x,
-                                                        colnumber,
-                                                    pcolname,
-                                                sizeofcolname,
-                                            pcolnamelen,
-                                        pcoltype,
-                                    pcollen,
-                                pscale,
-                            pnullable);
-                        };
-        return stmt.invoke(expr);
-    }
-
-    RETCODE
-        do_SQLBindCol(  const odbc_raii_statement&  stmt        ,
-                        UWORD                       colnumber   ,
-                        UCHAR*                      datai       ,
-                        std::size_t                 bufsize     ,
-                        SQLLEN*                     datastrleni )
-    {
-        return stmt.invoke(
-            [=](HSTMT x) { return ::SQLBindCol(x, colnumber, SQL_C_CHAR, datai, bufsize, datastrleni); }
-        );
-    }
-}
-
-//*************************************************
 
 tstring getTypeStr(SQLSMALLINT type)
 {

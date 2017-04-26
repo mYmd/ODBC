@@ -120,7 +120,7 @@ __int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
     auto val = static_cast<SQLULEN>(sec);
     auto p = static_cast<SQLPOINTER>(&val);
     auto setSTMT = [=](HSTMT x) {
-        return ::SQLSetStmtAttr(x, SQL_ATTR_QUERY_TIMEOUT, p, 0);
+        return ::SQLSetStmtAttr(x, SQL_ATTR_QUERY_TIMEOUT, p, SQL_IS_POINTER);//0
     };
     auto result = vODBCStmt[myNo]->stmt().invoke(setSTMT);
     return (result == SQL_SUCCESS || result == SQL_SUCCESS_WITH_INFO)? sec: 0;
