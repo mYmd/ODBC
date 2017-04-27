@@ -96,12 +96,12 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
         if ( 0 <= myNo && myNo < vODBCStmt.size() )
         {
             auto tmp = myNo;
-            vODBCStmt[myNo] = std::make_unique<odbc_set>(connectName, myNo);
+            vODBCStmt[myNo] = std::make_unique<odbc_set>(connectName);
             myNo = tmp;
         }
         else
         {
-            vODBCStmt.push_back(std::make_unique<odbc_set>(connectName, myNo));
+            vODBCStmt.push_back(std::make_unique<odbc_set>(connectName));
             myNo = static_cast<int>(vODBCStmt.size() - 1);
         }
     }
@@ -171,7 +171,7 @@ VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL, VARIANT* hea
     auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
         vec[j].push_back(makeVariantFromSQLType(coltype, str));
     };
-    auto add_func = [&](std::size_t) {    };
+    auto add_func = [&](std::size_t) {  };
     header_getter header_func;
     auto recordLen = select_table(  vODBCStmt[myNo]->stmt() ,
                                 tstring{bstr}           ,
@@ -194,26 +194,22 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, VARIANT* header)
     BSTR bstr = getBSTR(SQL);
     if (!bstr || myNo < 0 || vODBCStmt.size() <= myNo)        return ret;
     std::vector<std::vector<VARIANT>> vec;
-    std::vector<column_name_type>   v_colname;
-    std::vector<SQLSMALLINT>        v_coltype;
-    header_getter                   header_func;
     auto init_func = [&](SQLSMALLINT c) {
         vec.resize(c);
     };
     auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
         vec[j].push_back(makeVariantFromSQLType(coltype, str));
     };
-    auto add_func = [&](std::size_t) {};
+    auto add_func = [&](std::size_t) {  };
+    header_getter header_func;
     auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
                                 tstring{bstr},
                             header_func,
                         init_func,
                     elem_func,
                 add_func);
-    //-----------
     ::VariantClear(header);
     header_func.get(*header);
-    //---------------------------------
     SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(recordLen), 0 }, { static_cast<ULONG>(vec.size()), 0 } };
     safearrayRAII pArray(::SafeArrayCreate(VT_VARIANT, 2, rgb));
     auto const elemsize = ::SafeArrayGetElemsize(pArray.get());

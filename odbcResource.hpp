@@ -78,9 +78,8 @@ class odbc_set {
     odbc_raii_env       env;
     odbc_raii_connect   con;
     odbc_raii_statement st;
-    __int32*            pNo;
 public:
-    odbc_set(const tstring& connectName, __int32& myNo);
+    odbc_set(const tstring& connectName);
     ~odbc_set();
     odbc_raii_statement&  stmt();
 };
@@ -246,6 +245,16 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
     return nresultcols;
 }
 
+//******************************************************************
+namespace   {
+    struct dummy_t {
+        bool operator !() const {    return false;   }
+    };
+
+    bool operator ,(bool b, const dummy_t&)     {  return b;   }
+}
+//******************************************************************
+
 template <typename FH, typename FI, typename FE, typename FA>
 std::size_t select_table(   odbc_raii_statement const& stmt , 
                             tstring const&  sql_expr        , 
@@ -282,6 +291,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
     TCHAR tcharBuffer[StrSizeofColumn];
     auto const fetch_expr = [](HSTMT x) { return SQLFetch(x); };
     std::size_t counter{0};
+    dummy_t     dummy;
     while (true)
     {
         for (int j = 0; j < nresultcols; ++j)
@@ -301,7 +311,8 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             StrSizeofColumn);
                 std::forward<FE>(elem_func)(j, (1 < mb)? tcharBuffer: nullptr, coltype[j]);
             }
-            std::forward<FA>(add_func)(counter++);
+            if ( !( std::forward<FA>(add_func)(counter++), dummy) )
+                break;
         }
         else
         {

@@ -108,7 +108,7 @@ cursor_colser::~cursor_colser()
 
 //********************************************************
 
-odbc_set::odbc_set(const tstring& connectName, __int32& myNo) : pNo{ &myNo }
+odbc_set::odbc_set(const tstring& connectName)
 {
     env.AllocHandle();
     con.AllocHandle(env);
@@ -117,7 +117,6 @@ odbc_set::odbc_set(const tstring& connectName, __int32& myNo) : pNo{ &myNo }
 
 odbc_set::~odbc_set()
 {
-    if (!too_late_to_destruct)  *pNo = -1;
 }
 
 odbc_raii_statement&  odbc_set::stmt()
