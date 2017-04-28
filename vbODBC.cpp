@@ -1,19 +1,11 @@
 //vbODBC.cpp
 //Copyright (c) 2015 mmYYmmdd
-
-//******************************
-//  terminateODBC
-//  initODBC
-//	selectODBC
-//	ODBC_columnAttribute
-//	execODBC
-//******************************
 #include "stdafx.h"
 #include "odbcResource.hpp"
 #include <memory>
-#include <vector>
 #include <OleAuto.h>
 
+using namespace mymd;
 
 namespace {
 

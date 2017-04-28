@@ -17,6 +17,8 @@ void Too_Late_To_Destruct()
 }
 //****************************************************************
 
+namespace mymd  {
+
 odbc_raii_env::odbc_raii_env() : henv(0)
 {   }
 
@@ -166,3 +168,5 @@ tstring getTypeStr(SQLSMALLINT type)
     }
     return ret;
 }
+
+}   // namespace mymd

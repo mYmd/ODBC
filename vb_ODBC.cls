@@ -180,7 +180,7 @@ End Function
 Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
     Dim tmp As Variant
-    tmp = columnAttributes_all(myNo_, schemaName, tableName)
+    tmp = columnAttributes_all(myNo_, IIf(IsMissing(schemaName), "", schemaName), tableName)
     If IsEmpty(tmp(0)) Then Exit Function
     tmp(3) = mapF(p_mult(-1), tmp(3))
     If 0 < sizeof(tmp(5)) Then

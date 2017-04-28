@@ -13,6 +13,8 @@
 
 #pragma comment(lib, "odbccp32.lib")
 
+namespace mymd  {
+
 using tstring = std::basic_string<TCHAR>;
 
 //**************************************************************
@@ -89,7 +91,6 @@ tstring getTypeStr(SQLSMALLINT);
 //********************************************************
 using buffer_t = std::basic_string<UCHAR>;
 using column_name_type = std::array<TCHAR, 256>;
-using result_type = std::vector<std::vector<tstring>>;
 //********************************************************
 
 //êfífÉÅÉbÉZÅ[ÉW
@@ -246,13 +247,12 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
 }
 
 //******************************************************************
-namespace   {
+
     struct dummy_t {
-        bool operator !() const {    return false;   }
+        bool operator !() const        {   return false;   }
+        friend bool operator ,(bool b, const dummy_t&)        { return b; }
     };
 
-    bool operator ,(bool b, const dummy_t&)     {  return b;   }
-}
 //******************************************************************
 
 template <typename FH, typename FI, typename FE, typename FA>
@@ -286,12 +286,13 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                                 false       );
     if (nresultcols == 0 )          return 0;
     //-----------------------------------------------
-    std::forward<FI>(init_func)(nresultcols);
+    dummy_t     dummy;
+    if ( !(std::forward<FI>(init_func)(nresultcols), dummy) )
+        return 0;
     const std::size_t StrSizeofColumn = 16384;
     TCHAR tcharBuffer[StrSizeofColumn];
     auto const fetch_expr = [](HSTMT x) { return SQLFetch(x); };
     std::size_t counter{0};
-    dummy_t     dummy;
     while (true)
     {
         for (int j = 0; j < nresultcols; ++j)
@@ -321,3 +322,5 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
     }
     return counter;
 }
+
+}   // namespace mymd
