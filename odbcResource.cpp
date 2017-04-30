@@ -117,10 +117,6 @@ odbc_set::odbc_set(const tstring& connectName)
     st.AllocHandle(connectName, con);
 }
 
-odbc_set::~odbc_set()
-{
-}
-
 odbc_raii_statement&  odbc_set::stmt()
 {
     return st;

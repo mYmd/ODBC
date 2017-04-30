@@ -82,7 +82,6 @@ class odbc_set {
     odbc_raii_statement st;
 public:
     odbc_set(const tstring& connectName);
-    ~odbc_set();
     odbc_raii_statement&  stmt();
 };
 
@@ -215,7 +214,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
         return ::SQLDescribeCol(x                           ,
                                 static_cast<UWORD>(j+1)     ,
                                 colname[j].data()           ,
-                                ColumnNameLen*sizeof(TCHAR) ,
+                                static_cast<SQLSMALLINT>(ColumnNameLen*sizeof(TCHAR)),
                                 &colnamelen[j]              ,
                                 &coltype[j]                 ,
                                 &collen[j]                  ,
@@ -273,9 +272,9 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             std::vector<SQLSMALLINT>&       scale_      ,
                             std::vector<SQLLEN>&            datastrlen_)
     {
+        coltype = coltype_;
+        datastrlen = datastrlen_;
         std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_, datastrlen_);
-        coltype     = std::move(coltype_);
-        datastrlen  = std::move(datastrlen_);
     };
     cursor_colser   c_closer(stmt, true);
     std::vector<buffer_t> buffer;
@@ -306,7 +305,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                     buffer[j][datastrlen[j]] = '\0';
                 int mb = ::MultiByteToWideChar( CP_ACP,
                                             MB_PRECOMPOSED,
-                                        (LPCSTR)&buffer[j][0],
+                                        reinterpret_cast<LPCSTR>(&buffer[j][0]),
                                     -1,
                                 tcharBuffer,
                             StrSizeofColumn);

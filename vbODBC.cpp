@@ -11,6 +11,11 @@ namespace {
 
     std::vector<std::unique_ptr<odbc_set>>  vODBCStmt;
 
+    __int32 vODBCStmt_size()
+    {
+        return static_cast<__int32>(vODBCStmt.size());
+    }
+
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
 
     BSTR getBSTR(VARIANT* expr);
@@ -23,11 +28,21 @@ namespace {
         SAFEARRAY* get() const { return pArray; }
     };
 
-    VARIANT vec2VArray(std::vector<VARIANT>&&);
+    VARIANT iVariant(VARTYPE t = VT_EMPTY)
+    {
+        VARIANT ret;
+        ::VariantInit(&ret);
+        ret.vt = t;
+        return ret;
+    }
 
-    template <typename T, typename F>
-    VARIANT vec2VArray(std::vector<T>&&, F&&);
+    template <typename Container_t>
+    VARIANT vec2VArray(Container_t&&);
 
+    template <typename Container_t, typename F>
+    VARIANT vec2VArray(Container_t&&, F&&);
+
+    // 
     class header_getter    {
         std::vector<column_name_type>   v_colname;
         std::vector<SQLSMALLINT>        v_coltype;
@@ -40,28 +55,14 @@ namespace {
                         std::vector<SQLSMALLINT>&               ,
                         std::vector<SQLLEN>&        )
         {
-            v_colname = colname;
-            v_coltype = coltype;
+            v_colname = std::move(colname);
+            v_coltype = std::move(coltype);
         }
-        void get(VARIANT& v)
-        {
-            auto bstr_trans = [](VARIANT& elem, column_name_type& c) {
-                elem.vt = VT_BSTR;
-                elem.bstrVal = SysAllocString(c.data());
-            };
-            auto type_trans = [](VARIANT& elem, SQLSMALLINT t) {
-                elem.vt = VT_BSTR;
-                tstring const str = getTypeStr(t);
-                TCHAR const* p = str.empty() ? nullptr : &str[0];
-                elem.bstrVal = SysAllocString(p);
-            };
-            VARIANT colname_array = vec2VArray(std::move(v_colname), bstr_trans);
-            VARIANT coltype_array = vec2VArray(std::move(v_coltype), type_trans);
-            std::vector<VARIANT> vec{colname_array, coltype_array};
-            ::VariantClear(&v);
-            std::swap(v, vec2VArray(std::move(vec)));
-        }
+        VARIANT getHeader();
     };
+
+    std::vector<std::vector<VARIANT>>
+        selectODBC_columnWise_imple(odbc_raii_statement&, BSTR, VARIANT*);
 
 }
 
@@ -69,7 +70,7 @@ namespace {
 
 void __stdcall terminateODBC(__int32 myNo)
 {
-    if ( 0 <= myNo && myNo < vODBCStmt.size() )
+    if ( 0 <= myNo && myNo < vODBCStmt_size() )
         vODBCStmt[myNo].reset();
 }
 
@@ -85,11 +86,9 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
     tstring connectName{ bstr };
     try
     {
-        if ( 0 <= myNo && myNo < vODBCStmt.size() )
+        if ( 0 <= myNo && myNo < vODBCStmt_size() )
         {
-            auto tmp = myNo;
             vODBCStmt[myNo] = std::make_unique<odbc_set>(connectName);
-            myNo = tmp;
         }
         else
         {
@@ -97,7 +96,7 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
             myNo = static_cast<int>(vODBCStmt.size() - 1);
         }
     }
-    catch (RETCODE)
+    catch (...)
     {
         return -1;
     }
@@ -106,7 +105,7 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
 
 __int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
 {
-    if ( myNo < 0 || vODBCStmt.size() <= myNo )
+    if ( myNo < 0 || vODBCStmt_size() <= myNo )
         return 0;
     if (sec < 0)    sec = 0;
     auto val = static_cast<SQLULEN>(sec);
@@ -120,20 +119,20 @@ __int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
 
 VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header)
 {
-    VARIANT ret;
-    ::VariantInit(&ret);
     BSTR bstr = getBSTR(SQL);
-    if (!bstr || myNo < 0 || vODBCStmt.size() <= myNo)        return ret;
-    std::vector<std::vector<VARIANT>> vec;
+    if (!bstr || myNo < 0 || vODBCStmt_size() <= myNo)        return iVariant();
+    std::vector<VARIANT> vec;
     std::vector<VARIANT> elem;
+    SQLSMALLINT col_N{0};
     auto init_func = [&](SQLSMALLINT c) {
-        elem.resize(c);
+        elem.resize(col_N = c);
     };
     auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
         elem[j] = makeVariantFromSQLType(coltype, str);
     };
     auto add_func = [&](std::size_t) {
-        vec.push_back(elem);
+        vec.push_back(vec2VArray(std::move(elem)));
+        elem.resize(col_N);
     };
     header_getter header_func;
     auto recordLen = select_table(  vODBCStmt[myNo]->stmt() ,
@@ -143,72 +142,34 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header
                     elem_func               ,
                 add_func                );
     ::VariantClear(header);
-    header_func.get(*header);
+    std::swap(*header, header_func.getHeader());
+    return vec2VArray(std::move(vec));
+}
+
+VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL_expr, VARIANT* header)
+{
+    BSTR sql = getBSTR(SQL_expr);
+    if (!sql || myNo < 0 || vODBCStmt_size() <= myNo)       return iVariant();
+    auto vec = selectODBC_columnWise_imple(vODBCStmt[myNo]->stmt(), sql, header);
     std::vector<VARIANT> ret_vec;
     for (auto i = vec.begin(); i < vec.end(); ++i)
         ret_vec.push_back(vec2VArray(std::move(*i)));
     return vec2VArray(std::move(ret_vec));
 }
 
-VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL, VARIANT* header)
+VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL_expr, VARIANT* header)
 {
-    VARIANT ret;
-    ::VariantInit(&ret);
-    BSTR bstr = getBSTR(SQL);
-    if (!bstr || myNo < 0 || vODBCStmt.size() <= myNo)        return ret;
-    std::vector<std::vector<VARIANT>> vec;
-    auto init_func = [&](SQLSMALLINT c) {
-        vec.resize(c);
-    };
-    auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
-        vec[j].push_back(makeVariantFromSQLType(coltype, str));
-    };
-    auto add_func = [&](std::size_t) {  };
-    header_getter header_func;
-    auto recordLen = select_table(  vODBCStmt[myNo]->stmt() ,
-                                tstring{bstr}           ,
-                            header_func             ,
-                        init_func               ,
-                    elem_func               ,
-                add_func                );
-    ::VariantClear(header);
-    header_func.get(*header);
-    std::vector<VARIANT> ret_vec;
-    for ( auto i = vec.begin(); i < vec.end(); ++i )
-        ret_vec.push_back(vec2VArray(std::move(*i)));
-    return vec2VArray(std::move(ret_vec));
-}
-
-VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, VARIANT* header)
-{
-    VARIANT ret;
-    ::VariantInit(&ret);
-    BSTR bstr = getBSTR(SQL);
-    if (!bstr || myNo < 0 || vODBCStmt.size() <= myNo)        return ret;
-    std::vector<std::vector<VARIANT>> vec;
-    auto init_func = [&](SQLSMALLINT c) {
-        vec.resize(c);
-    };
-    auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
-        vec[j].push_back(makeVariantFromSQLType(coltype, str));
-    };
-    auto add_func = [&](std::size_t) {  };
-    header_getter header_func;
-    auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
-                                tstring{bstr},
-                            header_func,
-                        init_func,
-                    elem_func,
-                add_func);
-    ::VariantClear(header);
-    header_func.get(*header);
+    BSTR sql = getBSTR(SQL_expr);
+    if (!sql || myNo < 0 || vODBCStmt_size() <= myNo)       return iVariant();
+    auto vec = selectODBC_columnWise_imple(vODBCStmt[myNo]->stmt(), sql, header);
+    if ( !vec.size() )      return iVariant();
+    auto recordLen = vec[0].size();
     SAFEARRAYBOUND rgb[2] = { { static_cast<ULONG>(recordLen), 0 }, { static_cast<ULONG>(vec.size()), 0 } };
     safearrayRAII pArray(::SafeArrayCreate(VT_VARIANT, 2, rgb));
     auto const elemsize = ::SafeArrayGetElemsize(pArray.get());
-    char* it = nullptr;
+    char* it{nullptr};
     ::SafeArrayAccessData(pArray.get(), reinterpret_cast<void**>(&it));
-    if (!it)
-        return ret;
+    if (!it)        return iVariant();
     for (std::size_t col = 0; col < vec.size(); ++col)
     {
         for (std::size_t row = 0; row < recordLen; ++row)
@@ -217,16 +178,15 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL, VARIANT* header)
             it += elemsize;
         }
     }
-    ret.vt = VT_ARRAY | VT_VARIANT;
+    VARIANT ret = iVariant(VT_ARRAY | VT_VARIANT);
     ret.parray = pArray.get();
     return ret;
 }
 
 VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
 {
-    VARIANT ret;    ::VariantInit(&ret);
     BSTR bstr = getBSTR(SQL);
-    if ( !bstr || myNo < 0 || vODBCStmt.size() <= myNo )    return ret;
+    if ( !bstr || myNo < 0 || vODBCStmt_size() <= myNo )    return iVariant();
     //------------------------
     header_getter                   header_func;
     SQLSMALLINT     len = columnAttribute(  vODBCStmt[myNo]->stmt() ,
@@ -234,19 +194,16 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
                                     nullptr                 ,
                                 header_func             ,
                             true                    );
-    if ( len == 0 )     return ret;
-    header_func.get(ret);
-    return ret;
+    if ( len == 0 )     return iVariant();
+    return header_func.getHeader();
 }
 
 VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
 {
-    VARIANT ret;
-    ::VariantInit(&ret);
-    if ( myNo < 0 || vODBCStmt.size() <= myNo )         return ret;
-    if (!SQLs ||  0 == (VT_ARRAY & SQLs->vt))           return ret;
+    if ( myNo < 0 || vODBCStmt_size() <= myNo )         return iVariant();
+    if (!SQLs ||  0 == (VT_ARRAY & SQLs->vt))           return iVariant();
     SAFEARRAY* pArray = (0 == (VT_BYREF & SQLs->vt)) ? (SQLs->parray) : (*SQLs->pparray);
-    if (!pArray || 1 != ::SafeArrayGetDim(pArray))      return ret;
+    if (!pArray || 1 != ::SafeArrayGetDim(pArray))      return iVariant();
     SAFEARRAYBOUND bounds = { 1,0 };
     {
         ::SafeArrayGetLBound(pArray, 1, &bounds.lLbound);
@@ -270,23 +227,20 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         }
         ::VariantClear(&elem);
     }
-    auto errorNo_trans = [](VARIANT& elem, LONG c) {
-        elem.vt = VT_I4;
+    auto errorNo_trans = [](LONG c) {
+        VARIANT elem = iVariant(VT_I4);
         elem.lVal = c;
+        return elem;
     };
-    if (errorNo.size())
-        ret = vec2VArray(std::move(errorNo), errorNo_trans);
-    return ret;
+    return (errorNo.size())? vec2VArray(std::move(errorNo), errorNo_trans) : iVariant();
 }
 
 // テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
-    VARIANT ret;
-    ::VariantInit(&ret);
     BSTR schema_name_b = getBSTR(schemaName);
-    if (!schema_name_b || myNo < 0 || vODBCStmt.size() <= myNo)
-        return ret;
+    if (!schema_name_b || myNo < 0 || vODBCStmt_size() <= myNo)
+        return iVariant();;
     tstring schema_name_t(schema_name_b);
     SQLTCHAR* schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
     auto schema_len = static_cast<SQLSMALLINT>(schema_name_t.length());
@@ -316,11 +270,9 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 // テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
-    VARIANT ret;
-    ::VariantInit(&ret);
     BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
-    if (!schema_name_b || !table_Name_b || myNo < 0 || vODBCStmt.size() <= myNo)
-        return ret;
+    if (!schema_name_b || !table_Name_b || myNo < 0 || vODBCStmt_size() <= myNo)
+        return iVariant();
     tstring schema_name_t(schema_name_b), table_name_t(table_Name_b);
     SQLTCHAR* schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
     SQLTCHAR* table_Name  = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
@@ -372,38 +324,24 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
 
 namespace {
 
-    VARIANT makeVariantFromSQLType(SQLSMALLINT type, LPCOLESTR strln)
+    VARIANT makeVariantFromSQLType(SQLSMALLINT type, LPCOLESTR expr)
     {
-        VARIANT ret;
-        ::VariantInit(&ret);
-        if (!strln)
-        {
-            ret.vt = VT_NULL;
-            return ret;
-        }
+        VARIANT ret;    ::VariantInit(&ret);    ret.vt = VT_NULL;
+        if (!expr)      return ret;
         switch (type)
         {
-        case SQL_CHAR:
-        case SQL_VARCHAR:
-        case SQL_LONGVARCHAR:
-        case SQL_WCHAR:
-        case SQL_WVARCHAR:
-        case SQL_WLONGVARCHAR:
-        case SQL_BINARY:
-        case SQL_VARBINARY:
-        case SQL_LONGVARBINARY:
+        case SQL_CHAR:      case SQL_VARCHAR:       case SQL_LONGVARCHAR:
+        case SQL_WCHAR:     case SQL_WVARCHAR:      case SQL_WLONGVARCHAR:
+        case SQL_BINARY:    case SQL_VARBINARY:     case SQL_LONGVARBINARY:
         {
             ret.vt = VT_BSTR;
-            ret.bstrVal = ::SysAllocString(strln);
+            ret.bstrVal = ::SysAllocString(expr);
             return ret;
         }
-        case SQL_SMALLINT:
-        case SQL_INTEGER:
-        case SQL_BIT:
-        case SQL_TINYINT:
+        case SQL_SMALLINT:  case SQL_INTEGER:   case SQL_BIT:   case SQL_TINYINT:
         {
             long lOut;
-            auto const vdr = ::VarI4FromStr(strln, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &lOut);
+            auto const vdr = ::VarI4FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &lOut);
             ret.vt = VT_I4;
             ret.lVal = lOut;
             return ret;
@@ -411,42 +349,33 @@ namespace {
         case SQL_BIGINT:
         {
             LONG64  i64Out;
-            auto const vdr = ::VarI8FromStr(strln, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &i64Out);
+            auto const vdr = ::VarI8FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &i64Out);
             ret.vt = VT_I8;
             ret.llVal = i64Out;
             return ret;
         }
-        case SQL_NUMERIC:
-        case SQL_DECIMAL:
-        case SQL_FLOAT:
-        case SQL_REAL:
-        case SQL_DOUBLE:
+        case SQL_NUMERIC:   case SQL_DECIMAL:   case SQL_FLOAT: case SQL_REAL:  case SQL_DOUBLE:
         {
             double dOut;
-            auto const vdr = ::VarR8FromStr(strln, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
+            auto const vdr = ::VarR8FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
             ret.vt = VT_R8;
             ret.dblVal = dOut;
             return ret;
         }
-        case SQL_TYPE_DATE:
-        case SQL_TYPE_TIME:
-        case SQL_TYPE_TIMESTAMP:
+        case SQL_TYPE_DATE: case SQL_TYPE_TIME: case SQL_TYPE_TIMESTAMP:
         {
-            OLECHAR strln2[] = _T("2001-01-01 00:00:00");
-            auto p = strln;
-            auto q = strln2;
-            while (*p != _T('\0') && *p != _T('.') && *q != _T('\0'))
-                *q++ = *p++;
+            OLECHAR date_expr[] = _T("2001-01-01 00:00:00");
+            auto p = expr;
+            auto q = date_expr;
+            while (*p != _T('\0') && *p != _T('.') && *q != _T('\0'))       *q++ = *p++;
             *q = _T('\0');
             DATE dOut;
-            auto const vdr = ::VarDateFromStr(strln2, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
+            auto const vdr = ::VarDateFromStr(date_expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
             ret.vt = VT_DATE;
             ret.date = dOut;
             return ret;
         }
-        default:
-            ret.vt = VT_NULL;
-            return ret;
+        default:    return ret;
         }
     }
 
@@ -461,42 +390,77 @@ namespace {
     }
 
     // std::vector<VARIANT> ==> Variant()
-    VARIANT vec2VArray(std::vector<VARIANT>&& vec)
+    template <typename Container_t>
+    VARIANT vec2VArray(Container_t&& cont)
     {
-        VARIANT ret;
-        ::VariantInit(&ret);
-        SAFEARRAYBOUND rgb = { static_cast<ULONG>(vec.size()), 0 };
-        safearrayRAII pArray(::SafeArrayCreate(VT_VARIANT, 1, &rgb));
-        char* it = nullptr;
-        ::SafeArrayAccessData(pArray.get(), reinterpret_cast<void**>(&it));
-        if (!it)            return ret;
-        auto const elemsize = ::SafeArrayGetElemsize(pArray.get());
-        for (std::size_t i = 0; i < vec.size(); ++i)
-            std::swap(*reinterpret_cast<VARIANT*>(it + i * elemsize), vec[i]);
-        ret.vt = VT_ARRAY | VT_VARIANT;
-        ret.parray = pArray.get();
-        vec.clear();
-        return ret;
+        static_assert(!std::is_reference<Container_t>::value, "vec2VArray's parameter is a rvalue reference !!");
+        auto trans = [](typename Container_t::reference x) -> typename Container_t::reference   {
+            return x;
+        };
+        return vec2VArray(std::move(cont), trans);
     }
 
     // std::vector<T> ==> Variant()
-    template <typename T, typename F>
-    VARIANT vec2VArray(std::vector<T>&& vec, F&& trans)
+    template <typename Container_t, typename F>
+    VARIANT vec2VArray(Container_t&& cont, F&& trans)
     {
-        VARIANT ret;
-        ::VariantInit(&ret);
-        SAFEARRAYBOUND rgb = { static_cast<ULONG>(vec.size()), 0 };
+        static_assert(!std::is_reference<Container_t>::value, "vec2VArray's parameter is a rvalue reference !!");
+        SAFEARRAYBOUND rgb = { static_cast<ULONG>(cont.size()), 0 };
         safearrayRAII pArray(::SafeArrayCreate(VT_VARIANT, 1, &rgb));
         char* it = nullptr;
         ::SafeArrayAccessData(pArray.get(), reinterpret_cast<void**>(&it));
-        if (!it)            return ret;
+        if (!it)            return iVariant();
         auto const elemsize = ::SafeArrayGetElemsize(pArray.get());
-        for (std::size_t i = 0; i < vec.size(); ++i)
-            std::forward<F>(trans)(*reinterpret_cast<VARIANT*>(it + i * elemsize), vec[i]);
-        ret.vt = VT_ARRAY | VT_VARIANT;
+        std::size_t i{0};
+        for (auto p = cont.begin(); p != cont.end(); ++p, ++i)
+            std::swap(*reinterpret_cast<VARIANT*>(it + i * elemsize), std::forward<F>(trans)(*p));
+        VARIANT ret = iVariant(VT_ARRAY | VT_VARIANT);
         ret.parray = pArray.get();
-        vec.clear();
+        cont.clear();
         return ret;
+    }
+
+    std::vector<std::vector<VARIANT>>
+        selectODBC_columnWise_imple(odbc_raii_statement& st, BSTR sql, VARIANT* header)
+    {
+        std::vector<std::vector<VARIANT>> vec;
+        auto init_func = [&](SQLSMALLINT c) {
+            vec.resize(c);
+        };
+        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+            vec[j].push_back(makeVariantFromSQLType(coltype, str));
+        };
+        auto add_func = [&](std::size_t) {};
+        header_getter header_func;
+        auto recordLen = select_table(  st,
+                                    tstring{ sql },
+                                header_func,
+                            init_func,
+                        elem_func,
+                    add_func);
+        ::VariantClear(header);
+        std::swap(*header, header_func.getHeader());
+        return vec;
+    }
+
+    VARIANT header_getter::getHeader()
+    {
+        auto bstr_trans = [](column_name_type& c) {
+            VARIANT elem = iVariant(VT_BSTR);
+            elem.bstrVal = SysAllocString(c.data());
+            return elem;
+        };
+        auto type_trans = [](SQLSMALLINT t) {
+            VARIANT elem = iVariant(VT_BSTR);
+            tstring const str = getTypeStr(t);
+            TCHAR const* p = str.empty() ? nullptr : &str[0];
+            elem.bstrVal = SysAllocString(p);
+            return elem;
+        };
+        VARIANT colname_array = vec2VArray(std::move(v_colname), bstr_trans);
+        VARIANT coltype_array = vec2VArray(std::move(v_coltype), type_trans);
+        std::vector<VARIANT> vec{ colname_array, coltype_array };
+        return vec2VArray(std::move(vec));
     }
 
 }
