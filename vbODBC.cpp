@@ -52,8 +52,7 @@ namespace {
                         std::vector<SQLULEN>&                   ,
                         std::vector<SQLSMALLINT>&               ,
                         std::vector<SQLSMALLINT>&       coltype ,
-                        std::vector<SQLSMALLINT>&               ,
-                        std::vector<SQLLEN>&        )
+                        std::vector<SQLSMALLINT>&               )
         {
             v_colname = std::move(colname);
             v_coltype = std::move(coltype);
@@ -191,9 +190,10 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL)
     header_getter                   header_func;
     SQLSMALLINT     len = columnAttribute(  vODBCStmt[myNo]->stmt() ,
                                         tstring(bstr)           ,
-                                    nullptr                 ,
-                                header_func             ,
-                            true                    );
+                                    nullptr,
+                                nullptr,
+                            header_func             ,
+                        true                    );
     if ( len == 0 )     return iVariant();
     return header_func.getHeader();
 }

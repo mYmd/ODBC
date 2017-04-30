@@ -180,8 +180,9 @@ template <typename F>
 SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
                         tstring const&              sql_expr,
                     std::vector<buffer_t>*      pBuffer ,
-                F&&                         write_func,
-            bool close_)
+                std::vector<SQLLEN>*        pdatastrlen,
+            F&&                         write_func,
+        bool close_)
 {
     const std::size_t ColumnNameLen = 256;
     {
@@ -203,11 +204,15 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
     std::vector<SQLSMALLINT>        nullable(nresultcols);
     std::vector<SQLSMALLINT>        coltype(nresultcols);
     std::vector<SQLSMALLINT>        scale(nresultcols);
-    std::vector<SQLLEN>             datastrlen(nresultcols);
     if (pBuffer)
     {
         pBuffer->clear();
         pBuffer->resize(nresultcols);
+    }
+    if (pdatastrlen)
+    {
+        pdatastrlen->clear();
+        pdatastrlen->resize(nresultcols);
     }
     int j = 0;
     auto SQLDescribeColExpr = [&](HSTMT x)    {
@@ -222,26 +227,26 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
                                 &nullable[j]                );
     };
     auto SQLBindColExpr = [&](HSTMT x) {
-        return ::SQLBindCol(x, 
+        return ::SQLBindCol(x,
                             static_cast<UWORD>(j+1),
-                            SQL_C_CHAR, 
+                            SQL_C_CHAR,
                             &(*pBuffer)[j][0],
                             (*pBuffer)[j].size() * sizeof(UCHAR),
-                            &datastrlen[j]);
+                            &(*pdatastrlen)[j]);
     };
     const std::size_t StrSizeofColumn = 16384;
     cursor_colser   c_closer(stmt, close_);
     for ( j = 0; j < nresultcols; ++j )
     {
         RETCODE rc = stmt.invoke(SQLDescribeColExpr);
-        if (pBuffer)
+        if (pBuffer && pdatastrlen)
         {
             auto dlen = collen[j];
             (*pBuffer)[j].resize((0 < dlen && dlen < StrSizeofColumn) ? dlen+1 : StrSizeofColumn);
             rc = stmt.invoke(SQLBindColExpr);
         }
     }
-    std::forward<F>(write_func)(colname, colnamelen, collen, nullable, coltype, scale, datastrlen);
+    std::forward<F>(write_func)(colname, colnamelen, collen, nullable, coltype, scale);
     return nresultcols;
 }
 
@@ -263,26 +268,25 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             FA&&            add_func        )
 {
     std::vector<SQLSMALLINT>        coltype;
-    std::vector<SQLLEN>             datastrlen;
     auto write_func = [&] ( std::vector<column_name_type>&  colname_    ,
                             std::vector<SQLSMALLINT>&       colnamelen_ ,
                             std::vector<SQLULEN>&           collen_     ,
                             std::vector<SQLSMALLINT>&       nullable_   ,
                             std::vector<SQLSMALLINT>&       coltype_    ,
-                            std::vector<SQLSMALLINT>&       scale_      ,
-                            std::vector<SQLLEN>&            datastrlen_)
+                            std::vector<SQLSMALLINT>&       scale_      )
     {
         coltype = coltype_;
-        datastrlen = datastrlen_;
-        std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_, datastrlen_);
+        std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_);
     };
     cursor_colser   c_closer(stmt, true);
-    std::vector<buffer_t> buffer;
+    std::vector<buffer_t>   buffer;
+    std::vector<SQLLEN>     datastrlen;
     SQLSMALLINT nresultcols = columnAttribute(  stmt        ,
                                             sql_expr    ,
-                                        &buffer     , 
-                                    write_func  ,
-                                false       );
+                                        &buffer     ,
+                                    &datastrlen ,
+                                write_func  ,
+                            false       );
     if (nresultcols == 0 )          return 0;
     //-----------------------------------------------
     dummy_t     dummy;
@@ -290,7 +294,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
         return 0;
     const std::size_t StrSizeofColumn = 16384;
     TCHAR tcharBuffer[StrSizeofColumn];
-    auto const fetch_expr = [](HSTMT x) { return SQLFetch(x); };
+    auto const fetch_expr = [](HSTMT x) { return ::SQLFetch(x); };
     std::size_t counter{0};
     while (true)
     {
@@ -301,15 +305,13 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
         {
             for (SQLSMALLINT j = 0; j < nresultcols; ++j)
             {
-                if (0 < datastrlen[j] && datastrlen[j] < long(buffer[j].size()))
-                    buffer[j][datastrlen[j]] = '\0';
                 int mb = ::MultiByteToWideChar( CP_ACP,
                                             MB_PRECOMPOSED,
                                         reinterpret_cast<LPCSTR>(&buffer[j][0]),
                                     -1,
                                 tcharBuffer,
                             StrSizeofColumn);
-                std::forward<FE>(elem_func)(j, (1 < mb)? tcharBuffer: nullptr, coltype[j]);
+                std::forward<FE>(elem_func)(j, (SQL_NULL_DATA == datastrlen[j]) ? nullptr: tcharBuffer, coltype[j]);
             }
             if ( !( std::forward<FA>(add_func)(counter++), dummy) )
                 break;
