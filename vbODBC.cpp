@@ -235,7 +235,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return (errorNo.size())? vec2VArray(std::move(errorNo), errorNo_trans) : iVariant();
 }
 
-// テーブル一覧
+// 繝�繝ｼ繝悶Ν荳隕ｧ
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     BSTR schema_name_b = getBSTR(schemaName);
@@ -267,7 +267,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// テーブルにある全カラムの属性
+// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
@@ -289,7 +289,7 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
     std::vector<VARIANT> vec;
     auto value_type = SQL_CHAR;
     auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: _T("")));
+        vec.push_back(makeVariantFromSQLType(value_type, p? p: _T("")));
     };
 
     catalogValue(primarykeys_func, st, 4, push_back_func);  // KEY_NAME
