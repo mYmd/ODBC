@@ -5,22 +5,6 @@
 
 using namespace mymd;
 
-struct header_getter {
-    std::vector<tstring>            v_colname;
-    std::vector<SQLSMALLINT>        v_coltype;
-    void operator()(std::vector<column_name_type>&  colname,
-        std::vector<SQLSMALLINT>&,
-        std::vector<SQLULEN>&,
-        std::vector<SQLSMALLINT>&,
-        std::vector<SQLSMALLINT>&       coltype,
-        std::vector<SQLSMALLINT>&)
-    {
-        for ( auto& p : colname )
-            v_colname.push_back(p.data());
-        v_coltype = std::move(coltype);
-    }
-};
-
 int main()
 {
     odbc_set o_o{tstring{
@@ -43,7 +27,7 @@ int main()
     header_getter header_func;
     auto recordLen = select_table(o_o.stmt(),
         tstring{ _T("SELECT * FROM myTable") },
-        header_func,
+        no_header{},
         init_func,
         elem_func,
         add_func);
