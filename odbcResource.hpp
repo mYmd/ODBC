@@ -132,9 +132,9 @@ std::size_t catalogValue(
             [=](HSTMT x) { return ::SQLNumResultCols(x, pl); }
         );
     }
-    const std::size_t ColumnNameLen = 256;
+    const std::size_t ColumnNameLen = column_name_type{}.size();
     SQLCHAR  rgbValue[ColumnNameLen];
-    SQLLEN   pcbValue;
+    SQLLEN   pcbValue{0};
     {
         auto p_rgbValue = static_cast<SQLPOINTER>(rgbValue);
         auto p_pcbValue = &pcbValue;
@@ -146,13 +146,13 @@ std::size_t catalogValue(
             );
         }
         auto result = st.invoke(
-            [=](HSTMT x) { return ::SQLBindCol(x,
-                ColumnNumber,      //COLUMN_NAME
-                SQL_C_CHAR,
-                p_rgbValue,
-                ColumnNameLen,
-                p_pcbValue);
-        }
+            [=](HSTMT x) { return ::SQLBindCol( x,
+                                            ColumnNumber,      //COLUMN_NAME
+                                        SQL_C_CHAR,
+                                    p_rgbValue,
+                                ColumnNameLen,
+                            p_pcbValue);
+            }
         );
         if (SQL_SUCCESS != result)
             return 0;
@@ -174,8 +174,12 @@ std::size_t catalogValue(
     return counter;
 }
 
+//******************************************************************
+
+//  SELECT  ,  INSERT  ,  UPDATE  ,  ...
 RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt);
 
+//******************************************************************
 template <typename F>
 SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
                         tstring const&              sql_expr,
@@ -184,12 +188,9 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
             F&&                         write_func,
         bool close_)
 {
-    const std::size_t ColumnNameLen = 256;
-    {
-        auto const rc = execDirect(sql_expr, stmt);
-        if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)
-            return 0;
-    }
+    const std::size_t ColumnNameLen = column_name_type{}.size();
+    auto const rc = execDirect(sql_expr, stmt);
+    if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)    return 0;
     SQLSMALLINT nresultcols = 0;
     {
         SQLSMALLINT* pl = &nresultcols;
@@ -252,9 +253,18 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
 
 //******************************************************************
 
-    struct dummy_t {
-        bool operator !() const        {   return false;   }
-        friend bool operator ,(bool b, const dummy_t&)        { return b; }
+    struct no_header {
+        void operator()(std::vector<column_name_type>&,
+            std::vector<SQLSMALLINT>&,
+            std::vector<SQLULEN>&,
+            std::vector<SQLSMALLINT>&,
+            std::vector<SQLSMALLINT>&,
+            std::vector<SQLSMALLINT>&)  {  }
+    };
+
+    struct bool_proxy {
+        explicit operator bool() const  { return true; }
+        friend bool operator ,(bool b, const bool_proxy&)   { return b; }
     };
 
 //******************************************************************
@@ -289,8 +299,8 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             false       );
     if (nresultcols == 0 )          return 0;
     //-----------------------------------------------
-    dummy_t     dummy;
-    if ( !(std::forward<FI>(init_func)(nresultcols), dummy) )
+    bool_proxy  bp;
+    if ( !(std::forward<FI>(init_func)(nresultcols), bp) )
         return 0;
     const std::size_t StrSizeofColumn = 16384;
     TCHAR tcharBuffer[StrSizeofColumn];
@@ -313,7 +323,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             StrSizeofColumn);
                 std::forward<FE>(elem_func)(j, (SQL_NULL_DATA == datastrlen[j]) ? nullptr: tcharBuffer, coltype[j]);
             }
-            if ( !( std::forward<FA>(add_func)(counter++), dummy) )
+            if ( !( std::forward<FA>(add_func)(counter++), bp) )
                 break;
         }
         else
