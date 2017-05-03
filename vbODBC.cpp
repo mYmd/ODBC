@@ -44,10 +44,10 @@ namespace {
 
     // 
     class header_getter    {
-        std::vector<column_name_type>   v_colname;
-        std::vector<SQLSMALLINT>        v_coltype;
+        std::vector<column_name::type> v_colname;
+        std::vector<SQLSMALLINT>            v_coltype;
     public:
-        void operator()(std::vector<column_name_type>&  colname ,
+        void operator()(std::vector<column_name::type>&  colname,
                         std::vector<SQLSMALLINT>&               ,
                         std::vector<SQLULEN>&                   ,
                         std::vector<SQLSMALLINT>&               ,
@@ -235,7 +235,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     return (errorNo.size())? vec2VArray(std::move(errorNo), errorNo_trans) : iVariant();
 }
 
-// 繝�繝ｼ繝悶Ν荳隕ｧ
+// テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     BSTR schema_name_b = getBSTR(schemaName);
@@ -267,7 +267,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
+// テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
@@ -445,7 +445,7 @@ namespace {
 
     VARIANT header_getter::getHeader()
     {
-        auto bstr_trans = [](column_name_type& c) {
+        auto bstr_trans = [](column_name::type& c) {
             VARIANT elem = iVariant(VT_BSTR);
             elem.bstrVal = SysAllocString(c.data());
             return elem;

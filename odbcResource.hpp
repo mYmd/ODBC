@@ -89,7 +89,11 @@ public:
 tstring getTypeStr(SQLSMALLINT);
 //********************************************************
 using buffer_t = std::basic_string<UCHAR>;
-using column_name_type = std::array<TCHAR, 256>;
+
+struct column_name {
+    static std::size_t const size = 256;
+    using type = std::array<TCHAR, size>;
+};
 //********************************************************
 
 //êfífÉÅÉbÉZÅ[ÉW
@@ -132,7 +136,7 @@ std::size_t catalogValue(
             [=](HSTMT x) { return ::SQLNumResultCols(x, pl); }
         );
     }
-    const std::size_t ColumnNameLen = column_name_type{}.size();
+    const std::size_t ColumnNameLen = column_name::size;
     SQLCHAR  rgbValue[ColumnNameLen];
     SQLLEN   pcbValue{0};
     {
@@ -188,7 +192,6 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
             F&&                         write_func,
         bool close_)
 {
-    const std::size_t ColumnNameLen = column_name_type{}.size();
     auto const rc = execDirect(sql_expr, stmt);
     if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)    return 0;
     SQLSMALLINT nresultcols = 0;
@@ -199,7 +202,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
         );
         if (SQL_SUCCESS != rc)  return 0;
     }
-    std::vector<column_name_type>   colname(nresultcols);
+    std::vector<column_name::type>  colname(nresultcols);
     std::vector<SQLSMALLINT>        colnamelen(nresultcols);
     std::vector<SQLULEN>            collen(nresultcols);
     std::vector<SQLSMALLINT>        nullable(nresultcols);
@@ -220,7 +223,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
         return ::SQLDescribeCol(x                           ,
                                 static_cast<UWORD>(j+1)     ,
                                 colname[j].data()           ,
-                                static_cast<SQLSMALLINT>(ColumnNameLen*sizeof(TCHAR)),
+                                static_cast<SQLSMALLINT>(column_name::size * sizeof(TCHAR)),
                                 &colnamelen[j]              ,
                                 &coltype[j]                 ,
                                 &collen[j]                  ,
@@ -254,7 +257,8 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt    ,
 //******************************************************************
 
     struct no_header {
-        void operator()(std::vector<column_name_type>&,
+        void operator()(
+            std::vector<column_name::type>&,
             std::vector<SQLSMALLINT>&,
             std::vector<SQLULEN>&,
             std::vector<SQLSMALLINT>&,
@@ -278,7 +282,7 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             FA&&            add_func        )
 {
     std::vector<SQLSMALLINT>        coltype;
-    auto write_func = [&] ( std::vector<column_name_type>&  colname_    ,
+    auto write_func = [&] ( std::vector<column_name::type>&  colname_   ,
                             std::vector<SQLSMALLINT>&       colnamelen_ ,
                             std::vector<SQLULEN>&           collen_     ,
                             std::vector<SQLSMALLINT>&       nullable_   ,
