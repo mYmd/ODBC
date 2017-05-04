@@ -44,15 +44,15 @@ namespace {
 
     // 
     class header_getter    {
-        std::vector<column_name::type> v_colname;
+        std::vector<column_t::name_type>    v_colname;
         std::vector<SQLSMALLINT>            v_coltype;
     public:
-        void operator()(std::vector<column_name::type>&  colname,
-                        std::vector<SQLSMALLINT>&               ,
-                        std::vector<SQLULEN>&                   ,
-                        std::vector<SQLSMALLINT>&               ,
-                        std::vector<SQLSMALLINT>&       coltype ,
-                        std::vector<SQLSMALLINT>&               )
+        void operator()(std::vector<column_t::name_type>&   colname ,
+                        std::vector<SQLSMALLINT>&                   ,
+                        std::vector<SQLULEN>&                       ,
+                        std::vector<SQLSMALLINT>&                   ,
+                        std::vector<SQLSMALLINT>&           coltype ,
+                        std::vector<SQLSMALLINT>&                   )
         {
             v_colname = std::move(colname);
             v_coltype = std::move(coltype);
@@ -445,7 +445,7 @@ namespace {
 
     VARIANT header_getter::getHeader()
     {
-        auto bstr_trans = [](column_name::type& c) {
+        auto bstr_trans = [](column_t::name_type& c) {
             VARIANT elem = iVariant(VT_BSTR);
             elem.bstrVal = SysAllocString(c.data());
             return elem;
