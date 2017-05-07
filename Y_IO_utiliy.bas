@@ -4,27 +4,27 @@ Attribute VB_Name = "Y_IO_utiliy"
 Option Explicit
 
 '*********************************************************************************
-'   IOŠÖ˜Aƒ†[ƒeƒBƒŠƒeƒB
+'   IOé–¢é€£ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£
 '*********************************************************************************
-'   Function    sheet2m             ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚ç”z—ñ‚ğæ“¾
-'   Sub         m2sheet             ”z—ñ‚ğExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚Éƒy[ƒXƒg
-'   Function    getRangeMatrix      ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚çRangeƒIƒuƒWƒFƒNƒg‚Ì”z—ñ‚ğæ“¾
-'   Function    getInterior         ƒIƒuƒWƒFƒNƒg‚ÌInteriorƒvƒƒpƒeƒB‚ğæ“¾
-'   Function    getTextFile         ƒeƒLƒXƒgƒtƒ@ƒCƒ‹‚Ì”z—ñ“Ç‚İ‚İ
-'   Sub         writeTextFile       ”z—ñ‚ÌƒeƒLƒXƒgƒtƒ@ƒCƒ‹‘‚«‚İ
-'   Function    getURLText          URL‚Åw’è‚³‚ê‚½ƒeƒLƒXƒg‚Ì”z—ñ“Ç‚İ‚İ
-'   Function    urlEncode           URLƒGƒ“ƒR[ƒh
-'   Function    urlDecode           URLƒfƒR[ƒh
-'   Sub         m2Clip              ”z—ñi2ŸŒ³ˆÈ‰ºj‚ğƒNƒŠƒbƒvƒ{[ƒh‚É“]‘—‚·‚é
-'   Function    HTMLDocFromText     HTMLƒeƒLƒXƒg‚©‚ç‚ÌHTMLDocumentƒIƒuƒWƒFƒNƒg
-'   Function    getTagsFromHTML     HTMLƒeƒLƒXƒg‚©‚ç‚Ìƒ^ƒO’Šo
-'   Function    wTable2m            Word‚Ìƒe[ƒuƒ‹‚©‚ç”z—ñ‚ğæ“¾
+'   Function    sheet2m             Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰é…åˆ—ã‚’å–å¾—
+'   Sub         m2sheet             é…åˆ—ã‚’Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã«ãƒšãƒ¼ã‚¹ãƒˆ
+'   Function    getRangeMatrix      Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰Rangeã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®é…åˆ—ã‚’å–å¾—
+'   Function    getInterior         ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®Interiorãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’å–å¾—
+'   Function    getTextFile         ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ã®é…åˆ—èª­ã¿è¾¼ã¿
+'   Sub         writeTextFile       é…åˆ—ã®ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«æ›¸ãè¾¼ã¿
+'   Function    getURLText          URLã§æŒ‡å®šã•ã‚ŒãŸãƒ†ã‚­ã‚¹ãƒˆã®é…åˆ—èª­ã¿è¾¼ã¿
+'   Function    urlEncode           URLã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰
+'   Function    urlDecode           URLãƒ‡ã‚³ãƒ¼ãƒ‰
+'   Sub         m2Clip              é…åˆ—ï¼ˆ2æ¬¡å…ƒä»¥ä¸‹ï¼‰ã‚’ã‚¯ãƒªãƒƒãƒ—ãƒœãƒ¼ãƒ‰ã«è»¢é€ã™ã‚‹
+'   Function    HTMLDocFromText     HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®HTMLDocumentã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+'   Function    getTagsFromHTML     HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®ã‚¿ã‚°æŠ½å‡º
+'   Function    wTable2m            Wordã®ãƒ†ãƒ¼ãƒ–ãƒ«ã‹ã‚‰é…åˆ—ã‚’å–å¾—
 '*********************************************************************************
 
-' ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚ç”z—ñ‚ğæ“¾i’l‚Ì‚İj
-' vec = TrueF1ŸŒ³”z—ñ‰»
-' vec = FaleF2ŸŒ³”z—ñiƒfƒtƒHƒ‹ƒgj
-' LBound = 0 ‚Ì”z—ñ‚Æ‚È‚é
+' Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰é…åˆ—ã‚’å–å¾—ï¼ˆå€¤ã®ã¿ï¼‰
+' vec = Trueï¼š1æ¬¡å…ƒé…åˆ—åŒ–
+' vec = Faleï¼š2æ¬¡å…ƒé…åˆ—ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆï¼‰
+' LBound = 0 ã®é…åˆ—ã¨ãªã‚‹
 Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*excel*" And TypeName(r) = "Range" Then
         If r.cells.Count = 1 Then
@@ -37,8 +37,8 @@ Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False
     End If
 End Function
 
-' ”z—ñ‚ğExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚Éƒy[ƒXƒgi¶ã‚ÌƒZƒ‹‚ğw’èj
-' vertical = TrueF1ŸŒ³”z—ñ‚ğc‚Éƒy[ƒXƒg‚·‚é
+' é…åˆ—ã‚’Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã«ãƒšãƒ¼ã‚¹ãƒˆï¼ˆå·¦ä¸Šã®ã‚»ãƒ«ã‚’æŒ‡å®šï¼‰
+' vertical = Trueï¼š1æ¬¡å…ƒé…åˆ—ã‚’ç¸¦ã«ãƒšãƒ¼ã‚¹ãƒˆã™ã‚‹
 Public Sub m2sheet(ByRef matrix As Variant, _
                    ByVal r As Object, _
                    Optional ByVal vertical As Boolean = False)
@@ -58,7 +58,7 @@ Public Sub m2sheet(ByRef matrix As Variant, _
     End If
 End Sub
 
-' ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚çRangeƒIƒuƒWƒFƒNƒg‚Ì”z—ñ‚ğæ“¾
+' Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰Rangeã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®é…åˆ—ã‚’å–å¾—
 Public Function getRangeMatrix(ByVal r As Object) As Variant
     If Application.name = "Microsoft Excel" And TypeName(r) = "Range" Then
         Dim i As Long, j As Long, ret As Variant
@@ -74,7 +74,7 @@ Public Function getRangeMatrix(ByVal r As Object) As Variant
     End If
 End Function
 
-' ƒIƒuƒWƒFƒNƒg‚ÌInteriorƒvƒƒpƒeƒB‚ğæ“¾
+' ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®Interiorãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’å–å¾—
 Public Function getInterior(ByRef Ob As Variant, ByRef dummuy As Variant) As Variant
     Set getInterior = Ob.Interior
 End Function
@@ -82,9 +82,9 @@ End Function
         p_getInterior = make_funPointer(AddressOf getInterior, firstParam, secondParam)
     End Function
 
-' ƒeƒLƒXƒgƒtƒ@ƒCƒ‹‚Ì”z—ñ“Ç‚İ‚İ
-' Charset‚Íshift-jis‚Í–¾¦“I‚Éw’è‚µ‚È‚¢‚Æƒ_ƒ
-' head_n : ‚µ“Ç‚İæ“ªs”w’è
+' ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ã®é…åˆ—èª­ã¿è¾¼ã¿
+' Charsetã¯shift-jisã¯æ˜ç¤ºçš„ã«æŒ‡å®šã—ãªã„ã¨ãƒ€ãƒ¡
+' head_n : è©¦ã—èª­ã¿å…ˆé ­è¡Œæ•°æŒ‡å®š
 Public Function getTextFile(ByVal fileName As String, _
                             Optional ByVal line_end As String = vbCrLf, _
                             Optional ByVal Charset As String = "_autodetect_all", _
@@ -117,7 +117,7 @@ closeAdoStream:
     End If
 End Function
 
-' ”z—ñ‚ÌƒeƒLƒXƒgƒtƒ@ƒCƒ‹‘‚«‚İ
+' é…åˆ—ã®ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«æ›¸ãè¾¼ã¿
 Public Sub writeTextFile(ByRef data As Variant, _
                         ByVal fileName As String, _
                         ByVal Charset As String, _
@@ -142,8 +142,8 @@ closeAdoStream:
     Set ado = Nothing
 End Sub
 
-' URL‚Åw’è‚³‚ê‚½ƒeƒLƒXƒg‚Ì”z—ñ“Ç‚İ‚İ
-' head_n : ‚µ“Ç‚İæ“ªs”w’è
+' URLã§æŒ‡å®šã•ã‚ŒãŸãƒ†ã‚­ã‚¹ãƒˆã®é…åˆ—èª­ã¿è¾¼ã¿
+' head_n : è©¦ã—èª­ã¿å…ˆé ­è¡Œæ•°æŒ‡å®š
 Public Function getURLText(ByVal url As String, _
                            Optional ByVal line_end As String = vbCrLf, _
                            Optional ByVal Charset As String = "_autodetect_all", _
@@ -182,7 +182,7 @@ closeObjects:
     End If
 End Function
 
-' URLƒGƒ“ƒR[ƒhiQlÀ‘•j
+' URLã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰ï¼ˆå‚è€ƒå®Ÿè£…ï¼‰
 Public Function urlEncode(ByVal s As String) As String
     Dim ado As Object
     Dim tmp As Variant
@@ -194,7 +194,7 @@ Public Function urlEncode(ByVal s As String) As String
     urlEncode = Join(tmp, "")
 End Function
 
-' URLƒfƒR[ƒhiQlÀ‘•j
+' URLãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆå‚è€ƒå®Ÿè£…ï¼‰
 Public Function urlDecode(ByVal s As String) As String
     If s Like "*%??%??%??*" Then
         Dim begin As Long, theNext As Long
@@ -228,7 +228,7 @@ End Function
     Private Function isKanaKanji(ByVal s As String) As Boolean
         isKanaKanji = False
         If 0 < Len(s) Then
-            If Left(s, 1) Like "[¦-ß]" Then
+            If Left(s, 1) Like "[ï½¦-ï¾Ÿ]" Then
                 isKanaKanji = True
             ElseIf Asc(Left(s, 1)) < 0 Then
                 isKanaKanji = True
@@ -279,7 +279,7 @@ End Function
         End With
     End Function
 
-' ”z—ñi2ŸŒ³ˆÈ‰ºj‚ğƒNƒŠƒbƒvƒ{[ƒh‚É“]‘—‚·‚é
+' é…åˆ—ï¼ˆ2æ¬¡å…ƒä»¥ä¸‹ï¼‰ã‚’ã‚¯ãƒªãƒƒãƒ—ãƒœãƒ¼ãƒ‰ã«è»¢é€ã™ã‚‹
 Public Sub m2Clip(ByRef data As Variant)
     Dim s As String
     Select Case Dimension(data)
@@ -303,13 +303,13 @@ Public Sub m2Clip(ByRef data As Variant)
     Set dOb = Nothing
 End Sub
 
-' HTMLƒeƒLƒXƒg‚©‚ç‚ÌHTMLDocumentƒIƒuƒWƒFƒNƒg
+' HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®HTMLDocumentã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
 Public Function HTMLDocFromText(ByVal htmlText As String) As Object    'As HtmlDocument
     Set HTMLDocFromText = CreateObject("htmlfile") 'New MSHTML.HTMLDocument
     HTMLDocFromText.Write htmlText
 End Function
 
-' HTMLƒeƒLƒXƒg‚©‚ç‚Ìƒ^ƒO’Šo
+' HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®ã‚¿ã‚°æŠ½å‡º
 Public Function getTagsFromHTML(ByVal htmlText As String, ByRef tag As Variant) As Variant
     Dim doc As Object   'As HTMLDocument
     Set doc = HTMLDocFromText(htmlText)
@@ -323,14 +323,14 @@ Public Function getTagsFromHTML(ByVal htmlText As String, ByRef tag As Variant) 
     swapVariant ret, getTagsFromHTML
 End Function
 
-' Word‚Ìƒe[ƒuƒ‹‚©‚ç”z—ñ‚ğæ“¾
+' Wordã®ãƒ†ãƒ¼ãƒ–ãƒ«ã‹ã‚‰é…åˆ—ã‚’å–å¾—
 Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean = False) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*word*" And TypeName(t) = "Table" Then
         Dim ret As Variant, tmp As String
         With t
-            ret = makeM(.rows.Count, .Columns.Count)
+            ret = makeM(.Rows.Count, .Columns.Count)
             Dim i As Long, j As Long
-            For i = 1 To .rows.Count Step 1
+            For i = 1 To .Rows.Count Step 1
                 For j = 1 To .Columns.Count Step 1
                     tmp = .Cell(i, j).Range.Text
                     ret(i - 1, j - 1) = Left(tmp, Len(tmp) - 2)
@@ -339,7 +339,7 @@ Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean 
         End With
     End If
     If cutHeader Then
-        wTable2m = subM(ret, tailN(a_rows(ret), -1))
+        wTable2m = subM(ret, iota(1, UBound(ret, 1)))
     Else
         Call swapVariant(wTable2m, ret)
     End If
