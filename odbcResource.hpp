@@ -18,60 +18,60 @@ namespace mymd  {
 using tstring = std::basic_string<TCHAR>;
 
 //**************************************************************
-class odbc_raii_env	{
-	HENV	henv;
-	odbc_raii_env(const odbc_raii_env&) = delete;
-	odbc_raii_env(odbc_raii_env&&) = delete;
-	odbc_raii_env& operator =(const odbc_raii_env&) = delete;
-	odbc_raii_env& operator =(odbc_raii_env&&) = delete;
+class odbc_raii_env {
+    HENV    henv;
+    odbc_raii_env(const odbc_raii_env&) = delete;
+    odbc_raii_env(odbc_raii_env&&) = delete;
+    odbc_raii_env& operator =(const odbc_raii_env&) = delete;
+    odbc_raii_env& operator =(odbc_raii_env&&) = delete;
 public:
-	odbc_raii_env();
-	~odbc_raii_env();
-	void AllocHandle();
-	template <typename T>
-	RETCODE invoke(T&& expr) const
-	{	return (std::forward<T>(expr))(henv);	}
+    odbc_raii_env();
+    ~odbc_raii_env();
+    void AllocHandle();
+    template <typename T>
+    RETCODE invoke(T&& expr) const
+    {   return (std::forward<T>(expr))(henv);   }
 };
 
 //**************************************************************
-class odbc_raii_connect	{
-	HDBC	hdbc;
-	odbc_raii_connect(const odbc_raii_connect&) = delete;
-	odbc_raii_connect(odbc_raii_connect&&) = delete;
-	odbc_raii_connect& operator =(const odbc_raii_connect&) = delete;
-	odbc_raii_connect& operator =(odbc_raii_connect&&) = delete;
+class odbc_raii_connect {
+    HDBC    hdbc;
+    odbc_raii_connect(const odbc_raii_connect&) = delete;
+    odbc_raii_connect(odbc_raii_connect&&) = delete;
+    odbc_raii_connect& operator =(const odbc_raii_connect&) = delete;
+    odbc_raii_connect& operator =(odbc_raii_connect&&) = delete;
 public:
-	odbc_raii_connect();
-	~odbc_raii_connect();
-	void AllocHandle(const odbc_raii_env& env);
-	template <typename T>
-	RETCODE invoke(T&& expr) const
-	{	return (std::forward<T>(expr))(hdbc);	}
+    odbc_raii_connect();
+    ~odbc_raii_connect();
+    void AllocHandle(const odbc_raii_env& env);
+    template <typename T>
+    RETCODE invoke(T&& expr) const
+    {   return (std::forward<T>(expr))(hdbc);   }
 };
 
 //**************************************************************
-class odbc_raii_statement	{
-	HSTMT	hstmt;
-	odbc_raii_statement(const odbc_raii_statement&) = delete;
-	odbc_raii_statement(odbc_raii_statement&&) = delete;
-	odbc_raii_statement& operator =(const odbc_raii_statement&) = delete;
-	odbc_raii_statement& operator =(odbc_raii_statement&&) = delete;
+class odbc_raii_statement   {
+    HSTMT   hstmt;
+    odbc_raii_statement(const odbc_raii_statement&) = delete;
+    odbc_raii_statement(odbc_raii_statement&&) = delete;
+    odbc_raii_statement& operator =(const odbc_raii_statement&) = delete;
+    odbc_raii_statement& operator =(odbc_raii_statement&&) = delete;
 public:
-	odbc_raii_statement();
-	~odbc_raii_statement();
-	tstring AllocHandle(const tstring& connectName, const odbc_raii_connect& con);
-	template <typename T>
-	RETCODE invoke(T&& expr) const
-	{	return (std::forward<T>(expr))(hstmt);	}
+    odbc_raii_statement();
+    ~odbc_raii_statement();
+    tstring AllocHandle(const tstring& connectName, const odbc_raii_connect& con);
+    template <typename T>
+    RETCODE invoke(T&& expr) const
+    {   return (std::forward<T>(expr))(hstmt);  }
 };
 
 //**************************************************************
-class cursor_colser	{
-	const odbc_raii_statement&	h_;
+class cursor_colser {
+    const odbc_raii_statement&  h_;
     bool close_;
 public:
-	cursor_colser(const odbc_raii_statement& h, bool b);
-	~cursor_colser();
+    cursor_colser(const odbc_raii_statement& h, bool b);
+    ~cursor_colser();
 };
 
 //**************************************************************
@@ -97,7 +97,7 @@ struct column_t {
 };
 //********************************************************
 
-//診断メッセージ
+//險ｺ譁ｭ繝｡繝�繧ｻ繝ｼ繧ｸ
 template <std::size_t bufferSize = 1024>
 class SQLDiagRec   {
     SQLSMALLINT recNum;
@@ -118,7 +118,7 @@ public:
 
 //********************************************************
 
-// カタログ関数
+// 繧ｫ繧ｿ繝ｭ繧ｰ髢｢謨ｰ
 template <typename FC, typename FP>
 std::size_t catalogValue(
     FC&&                        catalog_func    ,   //
