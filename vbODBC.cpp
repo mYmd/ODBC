@@ -85,18 +85,27 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
     tstring connectName{ bstr };
     try
     {
+        auto p = std::make_unique<odbc_set>(connectName);
+        if ( p->isError() )
+        {
+            ::VariantClear(rawStr);
+            *rawStr = makeVariantFromSQLType(SQL_CHAR, p->errorMessage().data());
+            return -1;
+        }
         if ( 0 <= myNo && myNo < vODBCStmt_size() )
         {
-            vODBCStmt[myNo] = std::make_unique<odbc_set>(connectName);
+            vODBCStmt[myNo] = std::move(p);
         }
         else
         {
-            vODBCStmt.push_back(std::make_unique<odbc_set>(connectName));
+            vODBCStmt.push_back(std::move(p));
             myNo = static_cast<int>(vODBCStmt.size() - 1);
         }
     }
     catch (...)
     {
+        ::VariantClear(rawStr);
+        *rawStr = makeVariantFromSQLType(SQL_CHAR, _T("UnKnown Error"));
         return -1;
     }
     return myNo;
@@ -104,7 +113,7 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr)
 
 __int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
 {
-    if ( myNo < 0 || vODBCStmt_size() <= myNo )
+    if (myNo < 0 || vODBCStmt_size() <= myNo)
         return 0;
     if (sec < 0)    sec = 0;
     auto val = static_cast<SQLULEN>(sec);
@@ -113,7 +122,16 @@ __int32 __stdcall setQueryTimeout(__int32 myNo, __int32 sec)
         return ::SQLSetStmtAttr(x, SQL_ATTR_QUERY_TIMEOUT, p, SQL_IS_POINTER);//0
     };
     auto result = vODBCStmt[myNo]->stmt().invoke(setSTMT);
-    return (result == SQL_SUCCESS || result == SQL_SUCCESS_WITH_INFO)? sec: 0;
+    return (result == SQL_SUCCESS || result == SQL_SUCCESS_WITH_INFO) ? sec : 0;
+}
+
+VARIANT __stdcall getStatementError(__int32 myNo)
+{
+    if (myNo < 0 || vODBCStmt_size() <= myNo)
+        return iVariant();
+    SQLDiagRec<>    diagRec;
+    vODBCStmt[myNo]->stmt().invoke(diagRec);
+    return makeVariantFromSQLType(SQL_CHAR, diagRec.getMessage().data());
 }
 
 VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header)
@@ -214,7 +232,9 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
     cursor_colser       c_closer(vODBCStmt[myNo]->stmt(), true);
     VARIANT elem;
     ::VariantInit(&elem);
-    std::vector<LONG> errorNo;
+    std::vector<LONG>       errorNo;
+    std::vector<VARIANT>    errorMessaged;
+    SQLDiagRec<>            diagRec;
     for (ULONG i = 0; i < bounds.cElements; ++i)
     {
         LONG index = static_cast<LONG>(i) + bounds.lLbound;
@@ -223,7 +243,11 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         {
             auto const rc = execDirect(tstring(elem.bstrVal), vODBCStmt[myNo]->stmt());
             if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
+            {
                 errorNo.push_back(index);
+                vODBCStmt[myNo]->stmt().invoke(diagRec);
+                errorMessaged.push_back(makeVariantFromSQLType(SQL_CHAR, diagRec.getMessage().data()));
+            }
         }
         ::VariantClear(&elem);
     }
@@ -232,10 +256,13 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         elem.lVal = c;
         return elem;
     };
-    return (errorNo.size())? vec2VArray(std::move(errorNo), errorNo_trans) : iVariant();
+    return (errorNo.size())?
+        vec2VArray(std::vector<VARIANT>{vec2VArray(std::move(errorNo), errorNo_trans), 
+                                        vec2VArray(std::move(errorMessaged))          } )
+        : iVariant();
 }
 
-// テーブル一覧
+// 繝�繝ｼ繝悶Ν荳隕ｧ
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     BSTR schema_name_b = getBSTR(schemaName);
@@ -267,7 +294,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 
 // https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
 // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// テーブルにある全カラムの属性
+// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
