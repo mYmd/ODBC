@@ -80,9 +80,13 @@ class odbc_set {
     odbc_raii_env       env;
     odbc_raii_connect   con;
     odbc_raii_statement st;
+    tstring             errorMessage_;
 public:
     odbc_set(const tstring& connectName);
     odbc_raii_statement&  stmt();
+    bool isError() const;
+    void setErrorMessage(tstring&&);
+    tstring errorMessage() const;
 };
 
 //**************************************************************
@@ -97,8 +101,8 @@ struct column_t {
 };
 //********************************************************
 
-//診断メッセージ
-template <std::size_t bufferSize = 1024>
+//Diagnostic Message 診断メッセージ
+template <SQLSMALLINT HandleType = SQL_HANDLE_STMT, std::size_t bufferSize = 1024>
 class SQLDiagRec   {
     SQLSMALLINT recNum;
     SQLWCHAR SQLState[6];
@@ -112,7 +116,7 @@ public:
     RETCODE operator ()(HSTMT x)
     {
         SQLSMALLINT o_o;
-        return ::SQLGetDiagRec(SQL_HANDLE_STMT, x, recNum, SQLState, NULL, szErrorMsg, bufferSize, &o_o);
+        return ::SQLGetDiagRec(HandleType, x, recNum, SQLState, NULL, szErrorMsg, bufferSize, &o_o);
     }
 };
 
@@ -126,11 +130,9 @@ std::size_t catalogValue(
     SQLUSMALLINT                ColumnNumber    ,
     FP&&                        push_back_func  )   // <- TCHAR const* p
 {
-    cursor_colser   c_closer(st, true);
     auto result = st.invoke(std::forward<FC>(catalog_func));
-    if (SQL_SUCCESS != result)
-        return 0;
-    SQLSMALLINT nresultcols = 0;
+    if (SQL_SUCCESS != result)      return 0;
+    SQLSMALLINT nresultcols{0};
     {
         SQLSMALLINT* pl = &nresultcols;
         auto result = st.invoke(
@@ -140,10 +142,11 @@ std::size_t catalogValue(
     const std::size_t ColumnNameLen = column_t::nameSize;
     SQLCHAR  rgbValue[ColumnNameLen];
     SQLLEN   pcbValue{0};
+    cursor_colser   c_closer(st, true);
     {
         auto p_rgbValue = static_cast<SQLPOINTER>(rgbValue);
         auto p_pcbValue = &pcbValue;
-        for (auto j = 0; j < nresultcols; ++j)
+        for ( auto j = 0; j < nresultcols; ++j )
         {
             if (j == ColumnNumber)    continue;
             auto result = st.invoke(
@@ -159,11 +162,9 @@ std::size_t catalogValue(
                             p_pcbValue);
             }
         );
-        if (SQL_SUCCESS != result)
-            return 0;
+        if (SQL_SUCCESS != result)      return 0;
     }
     auto SQLFetch_expr = [=](HSTMT x) { return ::SQLFetch(x); };
-    std::vector<VARIANT> vec;
     std::size_t counter{0};
     TCHAR tcharBuffer[ColumnNameLen];
     while (true)
@@ -195,7 +196,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt    ,
 {
     auto const rc = execDirect(sql_expr, stmt);
     if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)    return 0;
-    SQLSMALLINT nresultcols = 0;
+    SQLSMALLINT nresultcols{0};
     {
         SQLSMALLINT* pl = &nresultcols;
         RETCODE const rc = stmt.invoke(
@@ -267,9 +268,9 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt    ,
             std::vector<SQLSMALLINT>&)  {  }
     };
 
-    struct bool_proxy {
+    struct bool_sentinel    {
         explicit operator bool() const  { return true; }
-        friend bool operator ,(bool b, const bool_proxy&)   { return b; }
+        friend bool operator ,(bool b, const bool_sentinel&)    { return b; }
     };
 
 //******************************************************************
@@ -293,7 +294,6 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
         coltype = coltype_;
         std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_);
     };
-    cursor_colser   c_closer(stmt, true);
     std::vector<column_t::buffer_type>  buffer;
     std::vector<SQLLEN>                 datastrlen;
     SQLSMALLINT nresultcols = columnAttribute(  stmt        ,
@@ -304,7 +304,8 @@ std::size_t select_table(   odbc_raii_statement const& stmt ,
                             false       );
     if (nresultcols == 0 )          return 0;
     //-----------------------------------------------
-    bool_proxy  bp;
+    cursor_colser   c_closer(stmt, true);
+    bool_sentinel   bp;
     if ( !(std::forward<FI>(init_func)(nresultcols), bp) )
         return 0;
     const std::size_t StrSizeofColumn = column_t::bufferSize;
