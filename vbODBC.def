@@ -1,9 +1,9 @@
-; vbODBC.def : DLL —p‚Ìƒ‚ƒWƒ…[ƒ‹ ƒpƒ‰ƒ[ƒ^éŒ¾
+; vbODBC.def : DLL ç”¨ã®ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ« ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿å®£è¨€
 
 LIBRARY      "vbODBC"
 
 EXPORTS
-    ; –¾¦“I‚ÈƒGƒNƒXƒ|[ƒg‚Í‚±‚±‚Ö‹Lq‚Å‚«‚Ü‚·
+    ; æ˜ç¤ºçš„ãªã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆã¯ã“ã“ã¸è¨˜è¿°ã§ãã¾ã™
 
 	terminateODBC = terminateODBC
 	terminateODBC_all = terminateODBC_all
@@ -16,3 +16,4 @@ EXPORTS
 	table_list_all = table_list_all
 	columnAttributes_all = columnAttributes_all
 	setQueryTimeout = setQueryTimeout
+	getStatementError = getStatementError
