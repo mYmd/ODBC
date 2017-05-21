@@ -25,7 +25,7 @@ odbc_raii_env::odbc_raii_env() : henv(0)
 odbc_raii_env::~odbc_raii_env()
 {
     if (!too_late_to_destruct)
-        SQLFreeEnv(henv);
+        ::SQLFreeEnv(henv);
 }
 
 void odbc_raii_env::AllocHandle()
@@ -88,12 +88,23 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
                             );
                 };
     auto const r1 = con.invoke(expr1);
+    if ( r1 != SQL_SUCCESS && r1 != SQL_SUCCESS_WITH_INFO )
+    {
+        SQLDiagRec<SQL_HANDLE_DBC>  diagRec;
+        con.invoke(diagRec);
+        return diagRec.getMessage();
+    }
     ucOutConnectStr[ConOut] = _T('\0');
     auto const r2 = con.invoke(
         [=](HDBC x) { return ::SQLAllocHandle(SQL_HANDLE_STMT, x, &hstmt); }
     );
-    if ( r2!=SQL_SUCCESS )  throw r2;
-    return tstring(ucOutConnectStr);
+    if ( r2!=SQL_SUCCESS )
+    {
+        SQLDiagRec<SQL_HANDLE_DBC>  diagRec;
+        con.invoke(diagRec);
+        return diagRec.getMessage();
+    }
+    return tstring(_T(""));
 }
 
 //********************************************************
@@ -114,12 +125,27 @@ odbc_set::odbc_set(const tstring& connectName)
 {
     env.AllocHandle();
     con.AllocHandle(env);
-    st.AllocHandle(connectName, con);
+    errorMessage_ = st.AllocHandle(connectName, con);
 }
 
-odbc_raii_statement&  odbc_set::stmt()
+odbc_raii_statement& odbc_set::stmt()
 {
     return st;
+}
+
+bool odbc_set::isError() const
+{
+    return 0 < errorMessage_.size();
+}
+
+void odbc_set::setErrorMessage(tstring && t)
+{
+    errorMessage_ = std::move(t);
+}
+
+tstring odbc_set::errorMessage() const
+{
+    return errorMessage_;
 }
 
 //********************************************************
