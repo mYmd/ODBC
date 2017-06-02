@@ -19,6 +19,7 @@ Option Explicit
 '   Function    HTMLDocFromText     HTMLテキストからのHTMLDocumentオブジェクト
 '   Function    getTagsFromHTML     HTMLテキストからのタグ抽出
 '   Function    wTable2m            Wordのテーブルから配列を取得
+'   Function    downloadFiles       URLで指定したファイルのダウンロード
 '*********************************************************************************
 
 ' Excelシートのセル範囲から配列を取得（値のみ）
@@ -60,7 +61,7 @@ End Sub
 
 ' Excelシートのセル範囲からRangeオブジェクトの配列を取得
 Public Function getRangeMatrix(ByVal r As Object) As Variant
-    If Application.name = "Microsoft Excel" And TypeName(r) = "Range" Then
+    If StrConv(Application.name, vbLowerCase) Like "*excel*" And TypeName(r) = "Range" Then
         Dim i As Long, j As Long, ret As Variant
         With r
             ret = makeM(.rows.Count, .Columns.Count)
@@ -115,6 +116,43 @@ closeAdoStream:
     If 0 < Len(line_end) And VarType(getTextFile) = vbString Then
         getTextFile = Split(getTextFile, line_end)
     End If
+End Function
+
+Function aband(ByRef val As Variant, ByRef vec As Variant) As Variant
+    If Not IsNull(val) Then Call vec.push_back(val)
+    'Set aband = vec
+End Function
+    Public Function p_aband(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
+        p_aband = make_funPointer(AddressOf aband, firstParam, secondParam)
+    End Function
+
+
+
+Public Function readTextFile_by(ByRef fun As Variant, _
+                            ByVal fileName As String, _
+                        Optional ByVal line_end As String = vbCrLf, _
+                    Optional ByVal Charset As String = "_autodetect_all" _
+                ) As Long
+    Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
+    On Error GoTo closeAdoStream
+    readTextFile_by = 0
+    Dim lineS As Variant
+    With ado
+        .Open
+        .Position = 0
+        .Type = 2    'ADODB.Stream.adTypeText
+        .Charset = Charset
+        .LoadFromFile fileName
+        .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+        Do While Not .EOS
+            lineS = .ReadText(-2)   'adReadLine
+            readTextFile_by = readTextFile_by + 1
+            Call applyFun(lineS, fun)
+        Loop
+    End With
+closeAdoStream:
+    ado.Close
+    Set ado = Nothing
 End Function
 
 ' 配列のテキストファイル書き込み
@@ -310,15 +348,35 @@ Public Function HTMLDocFromText(ByVal htmlText As String) As Object    'As HtmlD
 End Function
 
 ' HTMLテキストからのタグ抽出
-Public Function getTagsFromHTML(ByVal htmlText As String, ByRef tag As Variant) As Variant
+Public Function getTagsFromHTML(ByVal htmlText As String, _
+                                ByVal tag As Variant, _
+                                ByVal prop As String) As Variant
     Dim doc As Object   'As HTMLDocument
     Set doc = HTMLDocFromText(htmlText)
     Dim z As Variant
     Dim ret As Variant: ret = VBA.Array()
-    'Debug.Print doc.all.tags(tag).length
-    For Each z In doc.all.tags(tag)
-        push_back ret, z.innerText      'outerHTML
-    Next z
+    Select Case StrConv(prop, vbLowerCase)
+    Case "it"
+        For Each z In doc.all.tags(tag)
+            push_back ret, z.innerText
+        Next z
+    Case "ot"
+        For Each z In doc.all.tags(tag)
+            push_back ret, z.outerText
+        Next z
+    Case "ih"
+        For Each z In doc.all.tags(tag)
+            push_back ret, z.innerHTML
+        Next z
+    Case "oh"
+        For Each z In doc.all.tags(tag)
+            push_back ret, z.outerHTML
+        Next z
+    Case "href"
+        For Each z In doc.all.tags(tag)
+            push_back ret, z.href
+        Next z
+    End Select
     Set doc = Nothing
     swapVariant ret, getTagsFromHTML
 End Function
@@ -328,9 +386,9 @@ Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean 
     If StrConv(Application.name, vbLowerCase) Like "*word*" And TypeName(t) = "Table" Then
         Dim ret As Variant, tmp As String
         With t
-            ret = makeM(.Rows.Count, .Columns.Count)
+            ret = makeM(.rows.Count, .Columns.Count)
             Dim i As Long, j As Long
-            For i = 1 To .Rows.Count Step 1
+            For i = 1 To .rows.Count Step 1
                 For j = 1 To .Columns.Count Step 1
                     tmp = .Cell(i, j).Range.Text
                     ret(i - 1, j - 1) = Left(tmp, Len(tmp) - 2)
@@ -345,3 +403,81 @@ Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean 
     End If
 End Function
 
+' URLで指定したファイルのダウンロード
+Public Function downloadFiles(ByRef URLs As Variant, _
+                              ByVal pathName As String, _
+                              Optional ByRef fileNames As Variant, _
+                              Optional ByVal userName As String = "", _
+                              Optional ByVal passWord As String = "") As Long
+    downloadFiles = 0
+    Dim URLm As Variant
+    URLm = vector(URLs)
+    If 0 < Len(pathName) Then
+        If right(pathName, 1) <> "\" Then pathName = pathName & "\"
+    End If
+    Dim fNames As Variant
+    If IsMissing(fileNames) Or IsEmpty(fileNames) Or IsNull(fileNames) Then
+        fNames = mapF(p_getNth_b(, -1), mapF(p_split(, "/"), URLm))
+    Else
+        fNames = vector(fileNames)
+    End If
+    Dim i As Long
+    For i = 0 To min_fun(UBound(URLm), UBound(fNames)) Step 1
+        If downloadFile_(URLm(i), pathName & fNames(i), userName, passWord) Then
+            downloadFiles = downloadFiles + 1
+        End If
+    Next i
+End Function
+
+    Private Function downloadFile_(ByVal url As String, _
+                                   ByVal fileName As String, _
+                                   ByVal userName As String, _
+                                   ByVal passWord As String) As Boolean
+        downloadFile_ = False
+        Dim oo As Object:   Set oo = CreateObject("MSXML2.XMLHTTP")
+        If oo Is Nothing Then Exit Function
+        On Error GoTo closeFun
+        With oo
+            .Open "GET", url, False
+            If 0 < Len(userName) And 0 < Len(passWord) Then
+                .setRequestHeader "Authorization", _
+                                  "Basic " & _
+                                  encodeBase64(userName & ":" & passWord)
+            End If
+            .setRequestHeader "Pragma", "no-cache"
+            .setRequestHeader "Cache-Control", "no-cache"
+            .Send
+        End With
+        Select Case oo.Status       ' HTTP Result Code
+        Case 200        ' リクエスト成功
+            With CreateObject("ADODB.Stream")
+                .Type = 1 ' ADODB.Stream.adTypeBinary
+                .Open
+                .Write oo.responseBody
+                .SaveToFile fileName, 2 ' adSaveCreateOverWrite
+                .Close
+            End With
+            downloadFile_ = True
+        End Select
+closeFun:
+    End Function
+
+    Private Function encodeBase64(ByVal s As String) As String
+        Dim chars() As Byte
+        With CreateObject("ADODB.Stream")
+            .Open
+            .Type = 2       'ADODB.Stream.adTypeText
+            .Charset = "UTF-8"
+            .WriteText s
+            .Position = 0
+            .Type = 1       'ADODB.Stream.adTypeBinary
+            .Position = 3
+            chars = .Read()
+            .Close
+        End With
+        With CreateObject("MSXML2.DOMDocument").createElement("base64")
+            .DataType = "bin.base64"
+            .nodeTypedValue = chars
+            encodeBase64 = .Text
+        End With
+    End Function
