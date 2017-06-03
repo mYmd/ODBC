@@ -18,6 +18,7 @@ Option Explicit
 '   Sub         m2Clip              配列（2次元以下）をクリップボードに転送する
 '   Function    HTMLDocFromText     HTMLテキストからのHTMLDocumentオブジェクト
 '   Function    getTagsFromHTML     HTMLテキストからのタグ抽出
+'   (Function p_getTitleFromHTMLAnchor)
 '   Function    wTable2m            Wordのテーブルから配列を取得
 '   Function    downloadFiles       URLで指定したファイルのダウンロード
 '*********************************************************************************
@@ -116,43 +117,6 @@ closeAdoStream:
     If 0 < Len(line_end) And VarType(getTextFile) = vbString Then
         getTextFile = Split(getTextFile, line_end)
     End If
-End Function
-
-Function aband(ByRef val As Variant, ByRef vec As Variant) As Variant
-    If Not IsNull(val) Then Call vec.push_back(val)
-    'Set aband = vec
-End Function
-    Public Function p_aband(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
-        p_aband = make_funPointer(AddressOf aband, firstParam, secondParam)
-    End Function
-
-
-
-Public Function readTextFile_by(ByRef fun As Variant, _
-                            ByVal fileName As String, _
-                        Optional ByVal line_end As String = vbCrLf, _
-                    Optional ByVal Charset As String = "_autodetect_all" _
-                ) As Long
-    Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
-    On Error GoTo closeAdoStream
-    readTextFile_by = 0
-    Dim lineS As Variant
-    With ado
-        .Open
-        .Position = 0
-        .Type = 2    'ADODB.Stream.adTypeText
-        .Charset = Charset
-        .LoadFromFile fileName
-        .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
-        Do While Not .EOS
-            lineS = .ReadText(-2)   'adReadLine
-            readTextFile_by = readTextFile_by + 1
-            Call applyFun(lineS, fun)
-        Loop
-    End With
-closeAdoStream:
-    ado.Close
-    Set ado = Nothing
 End Function
 
 ' 配列のテキストファイル書き込み
@@ -348,39 +312,60 @@ Public Function HTMLDocFromText(ByVal htmlText As String) As Object    'As HtmlD
 End Function
 
 ' HTMLテキストからのタグ抽出
+' プロパティは引数propで指定
+' innerText, outerText, innerHTML, outerHTML, href は文字列で指定
+' それ以外は p_getTitleFromHTMLAnchor を参照
 Public Function getTagsFromHTML(ByVal htmlText As String, _
                                 ByVal tag As Variant, _
-                                ByVal prop As String) As Variant
+                                ByVal prop As Variant) As Variant
     Dim doc As Object   'As HTMLDocument
     Set doc = HTMLDocFromText(htmlText)
+    Dim vec As vh_stdvec:   Set vec = New vh_stdvec
     Dim z As Variant
-    Dim ret As Variant: ret = VBA.Array()
-    Select Case StrConv(prop, vbLowerCase)
-    Case "it"
+    If is_bindFun(prop) Then
         For Each z In doc.all.tags(tag)
-            push_back ret, z.innerText
+            vec.push_back z
         Next z
-    Case "ot"
-        For Each z In doc.all.tags(tag)
-            push_back ret, z.outerText
-        Next z
-    Case "ih"
-        For Each z In doc.all.tags(tag)
-            push_back ret, z.innerHTML
-        Next z
-    Case "oh"
-        For Each z In doc.all.tags(tag)
-            push_back ret, z.outerHTML
-        Next z
-    Case "href"
-        For Each z In doc.all.tags(tag)
-            push_back ret, z.href
-        Next z
-    End Select
+        getTagsFromHTML = mapF(prop, vec.free)
+    ElseIf TypeName(prop) = "String" Then
+        Select Case StrConv(prop, vbLowerCase)
+        Case "it"
+            For Each z In doc.all.tags(tag)
+                vec.push_back z.innerText
+            Next z
+        Case "ot"
+            For Each z In doc.all.tags(tag)
+                vec.push_back z.outerText
+            Next z
+        Case "ih"
+            For Each z In doc.all.tags(tag)
+                vec.push_back z.innerHTML
+            Next z
+        Case "oh"
+            For Each z In doc.all.tags(tag)
+                vec.push_back z.outerHTML
+            Next z
+        Case "href"
+            For Each z In doc.all.tags(tag)
+                vec.push_back z.href
+            Next z
+        End Select
+        getTagsFromHTML = vec.free
+    End If
     Set doc = Nothing
-    swapVariant ret, getTagsFromHTML
 End Function
 
+'HTMLAnchorElement から'Title'プロパティを取得
+    Private Function getTitleFromHTMLAnchor(ByRef anchor As Variant, _
+                                            ByRef dummy As Variant) As Variant
+        If TypeName(anchor) = "HTMLAnchorElement" Then
+            getTitleFromHTMLAnchor = anchor.Title
+        End If
+    End Function
+Public Function p_getTitleFromHTMLAnchor(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
+    p_getTitleFromHTMLAnchor = make_funPointer(AddressOf getTitleFromHTMLAnchor, firstParam, secondParam)
+End Function
+    
 ' Wordのテーブルから配列を取得
 Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean = False) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*word*" And TypeName(t) = "Table" Then
@@ -404,6 +389,7 @@ Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean 
 End Function
 
 ' URLで指定したファイルのダウンロード
+' fileNames省略時はリンク名の通り（最後の'/'の後ろ部分）
 Public Function downloadFiles(ByRef URLs As Variant, _
                               ByVal pathName As String, _
                               Optional ByRef fileNames As Variant, _
