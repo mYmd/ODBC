@@ -1,3 +1,12 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "vb_ODBC"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = False
+Attribute VB_Exposed = True
 Option Explicit
 ' vb_ODBC
 'Copyright (c) 2016 mmYYmmdd
@@ -337,7 +346,8 @@ Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
 End Function
 
 ' Excelブックに接続するための接続文字列
-Public Function excel_expr(ByVal bookName As String) As String
+Public Function excel_expr(ByVal bookName As String, _
+                           Optional ByVal readonly As Boolean = True) As String
     Dim drivers As Variant
     Dim i As Variant
     excel_expr = "Microsoft Excel Driver"
@@ -347,10 +357,12 @@ Public Function excel_expr(ByVal bookName As String) As String
     If i <= UBound(drivers) Then
         excel_expr = "DBA=R; Driver={" & drivers(i) & "}; DBQ="
         excel_expr = excel_expr & bookName
+        excel_expr = excel_expr & IIf(readonly, ";", "; ReadOnly=False;")
     Else
         excel_expr = ""
     End If
     '               SELECT * FROM [Sheet1$A1:D10]
+    '               INSERT INTO [Sheet1$A1:D10] VALUES(
 End Function
 
 ' accessdbの接続文字列
