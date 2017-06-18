@@ -262,7 +262,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         : iVariant();
 }
 
-// 繝�繝ｼ繝悶Ν荳隕ｧ
+// テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     BSTR schema_name_b = getBSTR(schemaName);
@@ -275,26 +275,42 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
     auto table_func = [=](HSTMT x)  {
         return ::SQLTables(x, NULL, SQL_NTS, schema_name, schema_len, NULL, SQL_NTS, NULL, SQL_NTS);
     };
-    auto const& st = vODBCStmt[myNo]->stmt();
+    std::array<SQLUSMALLINT, 7> columns = {2, 3, 4};
+    auto scheme_name_type = catalogValue(table_func             , 
+                                         vODBCStmt[myNo]->stmt(),
+                                         columns.begin()        ,
+                                         columns.end()          );
+    auto trans = [](tstring& s) {   return makeVariantFromSQLType(SQL_CHAR, &s[0]); };
     std::vector<VARIANT> vec;
-    auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(SQL_CHAR, p? p: _T("")));
-    };
-    catalogValue(table_func, st, 2, push_back_func);    //TABLE_SCHEM
-    VARIANT schem_name = vec2VArray(std::move(vec));
-    catalogValue(table_func, st, 3, push_back_func);    //TABLE_NAME
-    VARIANT table_name = vec2VArray(std::move(vec));
-    catalogValue(table_func, st, 4, push_back_func);    //TABLE_TYPE
-    VARIANT type_name = vec2VArray(std::move(vec));
-    vec.push_back(schem_name);
-    vec.push_back(table_name);
-    vec.push_back(type_name);
+    vec.push_back(vec2VArray(std::move(scheme_name_type[0]), trans));
+    vec.push_back(vec2VArray(std::move(scheme_name_type[1]), trans));
+    vec.push_back(vec2VArray(std::move(scheme_name_type[2]), trans));
     return vec2VArray(std::move(vec));
 }
 
-// https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fnprimarykeys.html#db2z_fnpkey__bknetbprkey
-// https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlprimarykeys-function
-// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
+// https://www.ibm.com/support/knowledgecenter/ja/SSEPEK_11.0.0/odbc/src/tpc/db2z_fncolumns.html
+//************************************************
+//  1   TABLE_CAT           VARCHAR(128)
+//  2   TABLE_SCHEM         VARCHAR(128)
+//  3   TABLE_NAME          VARCHAR(128) NOT NULL
+//  4   COLUMN_NAME         VARCHAR(128) NOT NULL
+//  5   DATA_TYPE           SMALLINT NOT NULL
+//  6   TYPE_NAME           VARCHAR(128) NOT NULL
+//  7   COLUMN_SIZE         INTEGER
+//  8   BUFFER_LENGTH       INTEGER
+//  9   DECIMAL_DIGITS      SMALLINT
+// 10   NUM_PREC_RADIX      SMALLINT
+// 11   NULLABLE            SMALLINT NOT NULL
+// 12   REMARKS             VARCHAR(762)
+// 13   COLUMN_DEF          VARCHAR(254)
+// 14   SQL_DATA_TYPE       SMALLINT NOT NULL
+// 15   SQL_DATETIME_SUB    SMALLINT
+// 16   CHAR_OCTET_LENGTH   INTEGER
+// 17   ORDINAL_POSITION    INTEGER NOT NULL
+// 18   IS_NULLABLE         VARCHAR(254)
+//************************************************
+
+// テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
     BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
@@ -306,46 +322,39 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
     auto schema_len = static_cast<SQLSMALLINT>(schema_name_t.length());
     auto table_len = static_cast<SQLSMALLINT>(table_name_t.length());
     if (schema_len == 0)      schema_name = NULL;
-    auto column_func = [=](HSTMT x) {
-        return ::SQLColumns(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len, NULL, SQL_NTS);
-    };
-    auto primarykeys_func = [=](HSTMT x) {
-        return ::SQLPrimaryKeys(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len);
-    };
     auto const& st = vODBCStmt[myNo]->stmt();
-    std::vector<VARIANT> vec;
-    auto value_type = SQL_CHAR;
-    auto push_back_func = [&](TCHAR const* p) {
-        vec.push_back(makeVariantFromSQLType(value_type, p? p: _T("")));
+    auto trans = [](SQLSMALLINT x) {
+        return [=](tstring& s)  {   return makeVariantFromSQLType(x, &s[0]);    };
     };
-
-    catalogValue(primarykeys_func, st, 4, push_back_func);  // KEY_NAME
-    VARIANT primarykeys = vec2VArray(std::move(vec));
-
-    catalogValue(column_func, st, 4, push_back_func);       // COLUMN_NAME
-    VARIANT column_name = vec2VArray(std::move(vec));
-
-    catalogValue(column_func, st, 6, push_back_func);       // TYPE_NAME
-    VARIANT type_name = vec2VArray(std::move(vec));
-
-    value_type = SQL_SMALLINT;
-    catalogValue(column_func, st, 11, push_back_func);      // IS_NULLABLE(SQL_SMALLINT)
-    VARIANT is_nullable = vec2VArray(std::move(vec));
-
-    value_type = SQL_INTEGER;
-    catalogValue(column_func, st, 7, push_back_func);       // COLUMN_SIZE(SQL_INTEGER)
-    VARIANT column_size = vec2VArray(std::move(vec));
-
-    catalogValue(column_func, st, 17, push_back_func);      // ORDINAL_POSITION(SQL_INTEGER)
-    VARIANT ordinal_position = vec2VArray(std::move(vec));
-
-    vec.push_back(column_name);
-    vec.push_back(type_name);
-    vec.push_back(column_size);
-    vec.push_back(is_nullable);
-    vec.push_back(ordinal_position);
-    vec.push_back(primarykeys);
-
+    std::vector<VARIANT> vec;
+    {
+        auto column_func = [=](HSTMT x) {
+            return ::SQLColumns(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len, NULL, SQL_NTS);
+        };
+        std::array<SQLUSMALLINT, 7> columns = { 4, 6, 11, 9, 5, 7, 17 };
+        auto column_attr = catalogValue(column_func, st, columns.begin(), columns.end());
+        VARIANT column_name = vec2VArray(std::move(column_attr[0]), trans(SQL_CHAR));
+        VARIANT type_name = vec2VArray(std::move(column_attr[1]), trans(SQL_CHAR));
+        VARIANT is_nullable = vec2VArray(std::move(column_attr[2]), trans(SQL_SMALLINT));
+        VARIANT Decimal_Digits = vec2VArray(std::move(column_attr[3]), trans(SQL_SMALLINT));
+        VARIANT column_size = vec2VArray(std::move(column_attr[5]), trans(SQL_INTEGER));
+        VARIANT ordinal_position = vec2VArray(std::move(column_attr[6]), trans(SQL_INTEGER));
+        vec.push_back(column_name);         // 0
+        vec.push_back(type_name);           // 1
+        vec.push_back(column_size);         // 2
+        vec.push_back(Decimal_Digits);      // 3
+        vec.push_back(is_nullable);         // 4
+        vec.push_back(ordinal_position);    // 5
+    }
+    {
+        auto primarykeys_func = [=](HSTMT x) {
+            return ::SQLPrimaryKeys(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len);
+        };
+        SQLUSMALLINT keycolumns[] = { 4 };
+        auto key_value = catalogValue(primarykeys_func, st, keycolumns, keycolumns + 1);    //KEY_NAME
+        VARIANT primarykeys = vec2VArray(std::move(key_value[0]), trans(SQL_CHAR));
+        vec.push_back(primarykeys);         // 6
+    }
     return vec2VArray(std::move(vec));
 }
 
