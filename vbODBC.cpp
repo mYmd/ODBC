@@ -323,9 +323,15 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
     auto table_len = static_cast<SQLSMALLINT>(table_name_t.length());
     if (schema_len == 0)      schema_name = NULL;
     auto const& st = vODBCStmt[myNo]->stmt();
-    auto trans = [](SQLSMALLINT x) {
-        return [=](tstring& s)  {   return makeVariantFromSQLType(x, &s[0]);    };
+    struct trans {  // Workaround for VC++2013
+        SQLSMALLINT x;
+        trans(SQLSMALLINT i) : x(i) {   }
+        VARIANT operator ()(tstring& s) const
+        {   return makeVariantFromSQLType(x, &s[0]);    };
     };
+    //auto trans = [](SQLSMALLINT x) {
+    //    return [=](tstring& s)  {   return makeVariantFromSQLType(x, &s[0]);    };
+    //};
     std::vector<VARIANT> vec;
     {
         auto column_func = [=](HSTMT x) {
