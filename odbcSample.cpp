@@ -24,7 +24,6 @@ int main()
         vec.push_back(std::move(elem));
         elem.resize(col_N);
     };
-    header_getter header_func;
     auto recordLen = select_table(o_o.stmt(),
         tstring{ _T("SELECT * FROM myTable") },
         no_header{},
