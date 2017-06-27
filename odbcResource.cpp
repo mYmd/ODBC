@@ -30,7 +30,7 @@ odbc_raii_env::~odbc_raii_env()
 
 void odbc_raii_env::AllocHandle()
 {
-    RETCODE rc = ::SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
+    auto rc = ::SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
     if (SQL_SUCCESS != rc) throw rc;
     rc = ::SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<void*>(SQL_OV_ODBC3), 0);
     if (SQL_SUCCESS !=rc) throw rc;
@@ -51,7 +51,7 @@ odbc_raii_connect::~odbc_raii_connect()
 
 void odbc_raii_connect::AllocHandle(const odbc_raii_env& env)
 {
-    RETCODE const rc = env.invoke(
+    auto const rc = env.invoke(
         [=](HENV x) { return ::SQLAllocHandle(SQL_HANDLE_DBC, x, &hdbc); }
     );
     if (SQL_SUCCESS != rc) throw rc;
@@ -73,10 +73,10 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
     if (hstmt)  ::SQLFreeStmt(hstmt, SQL_DROP);
     TCHAR ucOutConnectStr[1024];
     SQLSMALLINT ConOut = 0;
-    SQLTCHAR*   pCN = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(connectName.c_str()));
-    SQLTCHAR*   pCS = static_cast<SQLTCHAR*>(ucOutConnectStr);
-    std::size_t const len = sizeof(ucOutConnectStr) / sizeof(TCHAR);
-    SQLSMALLINT* pcount = &ConOut;
+    auto pCN = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(connectName.c_str()));
+    auto pCS = static_cast<SQLTCHAR*>(ucOutConnectStr);
+    auto len = sizeof(ucOutConnectStr) / sizeof(TCHAR);
+    auto pcount = &ConOut;
     auto const expr1 = [=](HDBC x){ return ::SQLDriverConnect(x,
                                                         NULL,
                                                     pCN,
@@ -152,7 +152,7 @@ tstring odbc_set::errorMessage() const
 
 RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt)
 {
-    SQLTCHAR* sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
+    auto sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
     return stmt.invoke(
         [=](HSTMT x) { return ::SQLExecDirect(x, sql, SQL_NTS); }
     );
