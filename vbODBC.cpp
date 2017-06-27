@@ -262,7 +262,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         : iVariant();
 }
 
-// テーブル一覧
+// 繝�繝ｼ繝悶Ν荳隕ｧ
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     auto schema_name_b = getBSTR(schemaName);
@@ -311,10 +311,10 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 // 18   IS_NULLABLE         VARCHAR(254)
 //************************************************
 
-// テーブルにある全カラムの属性
+// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
-    auto schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
+    BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
     if (!schema_name_b || !table_Name_b || myNo < 0 || vODBCStmt_size() <= myNo)
         return iVariant();
     tstring schema_name_t(schema_name_b), table_name_t(table_Name_b);
