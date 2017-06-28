@@ -1,5 +1,5 @@
-//vbODBC.cpp
 //Copyright (c) 2015 mmYYmmdd
+//vbODBC.cpp
 #include "stdafx.h"
 #include "odbcResource.hpp"
 #include <memory>
@@ -18,7 +18,8 @@ namespace {
 
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR);
 
-    BSTR getBSTR(VARIANT* expr);
+    BSTR getBSTR(VARIANT const&);
+    BSTR getBSTR(VARIANT const*);
 
     class safearrayRAII {
         SAFEARRAY* pArray;
@@ -262,7 +263,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs)
         : iVariant();
 }
 
-// 繝�繝ｼ繝悶Ν荳隕ｧ
+// テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 {
     auto schema_name_b = getBSTR(schemaName);
@@ -311,18 +312,19 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName)
 // 18   IS_NULLABLE         VARCHAR(254)
 //************************************************
 
-// 繝�繝ｼ繝悶Ν縺ｫ縺ゅｋ蜈ｨ繧ｫ繝ｩ繝縺ｮ螻樊ｧ
+// テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName)
 {
-    BSTR schema_name_b{getBSTR(schemaName)}, table_Name_b{getBSTR(tableName)};
+    auto schema_name_b = getBSTR(schemaName);
+    auto table_Name_b = getBSTR(tableName);
     if (!schema_name_b || !table_Name_b || myNo < 0 || vODBCStmt_size() <= myNo)
         return iVariant();
-    tstring schema_name_t(schema_name_b), table_name_t(table_Name_b);
+    tstring schema_name_t{schema_name_b}, table_name_t{table_Name_b};
     auto schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
     auto table_Name  = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
-    auto schema_len = static_cast<SQLSMALLINT>(schema_name_t.length());
-    auto table_len = static_cast<SQLSMALLINT>(table_name_t.length());
-    if (schema_len == 0)      schema_name = NULL;
+    auto schema_len  = static_cast<SQLSMALLINT>(schema_name_t.length());
+    auto table_len   = static_cast<SQLSMALLINT>(table_name_t.length());
+    if (schema_len == 0)      schema_name = NULL;   //nullptrではない
     auto const& st = vODBCStmt[myNo]->stmt();
     struct trans {  // Workaround for VC++2013
         SQLSMALLINT x;
@@ -342,11 +344,11 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIAN
         std::array<SQLUSMALLINT, 7> columns = { 4, 6, 11, 9, 5, 7, 17 };
         auto column_attr = catalogValue(column_func, st, columns.begin(), columns.end());
             //------------------------
-        auto column_name = vec2VArray(std::move(column_attr[0]), trans(SQL_CHAR));
-        auto type_name = vec2VArray(std::move(column_attr[1]), trans(SQL_CHAR));
-        auto is_nullable = vec2VArray(std::move(column_attr[2]), trans(SQL_SMALLINT));
-        auto Decimal_Digits = vec2VArray(std::move(column_attr[3]), trans(SQL_SMALLINT));
-        auto column_size = vec2VArray(std::move(column_attr[5]), trans(SQL_INTEGER));
+        auto column_name      = vec2VArray(std::move(column_attr[0]), trans(SQL_CHAR));
+        auto type_name        = vec2VArray(std::move(column_attr[1]), trans(SQL_CHAR));
+        auto is_nullable      = vec2VArray(std::move(column_attr[2]), trans(SQL_SMALLINT));
+        auto Decimal_Digits   = vec2VArray(std::move(column_attr[3]), trans(SQL_SMALLINT));
+        auto column_size      = vec2VArray(std::move(column_attr[5]), trans(SQL_INTEGER));
         auto ordinal_position = vec2VArray(std::move(column_attr[6]), trans(SQL_INTEGER));
         vec.push_back(column_name);         // 0
         vec.push_back(type_name);           // 1
@@ -423,14 +425,17 @@ namespace {
         }
     }
 
-    BSTR getBSTR(VARIANT* expr)
+    BSTR getBSTR(VARIANT const& expr)
     {
-        if (!expr)
-            return nullptr;
-        else if (expr->vt & VT_BYREF)
-            return ((expr->vt & VT_BSTR) && expr->pbstrVal) ? *expr->pbstrVal : nullptr;
+        if (expr.vt & VT_BYREF)
+            return ((expr.vt & VT_BSTR) && expr.pbstrVal) ? *expr.pbstrVal : nullptr;
         else
-            return ((expr->vt & VT_BSTR) && expr->bstrVal) ? expr->bstrVal : nullptr;
+            return ((expr.vt & VT_BSTR) && expr.bstrVal) ? expr.bstrVal : nullptr;
+    }
+
+    BSTR getBSTR(VARIANT const* expr)
+    {
+        return expr? getBSTR(*expr): nullptr;
     }
 
     // std::vector<VARIANT> ==> Variant()
