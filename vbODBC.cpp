@@ -21,13 +21,11 @@ namespace {
     BSTR getBSTR(VARIANT const&);
     BSTR getBSTR(VARIANT const*);
 
-    class safearrayRAII {
-        SAFEARRAY* pArray;
-    public:
-        safearrayRAII(SAFEARRAY* p) : pArray(p) {}
-        ~safearrayRAII() { ::SafeArrayUnaccessData(pArray); }
-        SAFEARRAY* get() const { return pArray; }
+    struct SafeArrayUnaccessor {
+        void operator()(SAFEARRAY* ptr) const   { ::SafeArrayUnaccessData(ptr); }
     };
+
+    using safearrayRAII = std::unique_ptr<SAFEARRAY, SafeArrayUnaccessor>;
 
     VARIANT iVariant(VARTYPE t = VT_EMPTY)
     {
