@@ -12,36 +12,36 @@ Option Explicit
 'Copyright (c) 2016 mmYYmmdd
 
 '*********************************************************************************
-' ODBCÚ‘±
+' ODBCæ¥ç¶š
 ' --------------------------------------------------------------------------------
-'   Function        connect             Ú‘±•¶š—ñ‚ğ”­s‚µ‚Äƒf[ƒ^ƒx[ƒX‚ÉÚ‘±
-'   Sub             disconnect          Ú‘±’f
-'   Sub             disconnect_all      ‚·‚×‚Ä‚ÌƒIƒuƒWƒFƒNƒg‚ÌÚ‘±‚ğ’f
-'   Function        setTimeout          ƒ^ƒCƒ€ƒAƒEƒg‚·‚é•b”‚ğİ’è
-'   Sub             clear               ƒwƒbƒ_iƒJƒ‰ƒ€jƒf[ƒ^‚Æƒe[ƒuƒ‹ƒf[ƒ^‚ğÁ‹
-'   Property Get    last_connected      ÅŒã‚É¬Œ÷‚µ‚½Ú‘±•¶š—ñ‚à‚µ‚­‚ÍƒGƒ‰[î•ñ‚Ìæ“¾
-'   Property Get    last_SQL            ÅŒã‚É”­s‚³‚ê‚½SQL•¶š—ñ‚Ìæ“¾
-'   Property Get    last_elapsed        ÅŒã‚É”­s‚³‚ê‚½SELECT•¶‚Å‚©‚©‚Á‚½ŠÔ (ƒ~ƒŠ•b)
-'   Property Get    last_execError      ÅŒã‚É”­s‚³‚ê‚½exec•¶‚ÌƒGƒ‰[s‚ÆƒGƒ‰[“à—e
-'   Property Get    last_queryError     ÅŒã‚É”­s‚³‚ê‚½select•¶“™‚ÌƒGƒ‰[
-'   Function        tableList           ƒe[ƒuƒ‹ˆê——æ“¾
-'   Function        tableAttribute      ƒe[ƒuƒ‹‚Ì Attribute
-'   Function        read_header         Select•¶‚ğ”­s‚µ‚Äƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğƒƒ“ƒo‚ÉŠi”[‚·‚é
-'   Function        get_header          ƒƒ“ƒo‚ÉŠi”[‚³‚ê‚½ƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğæ“¾‚·‚é
-'   Function        select_flat         Select•¶‚ğ”­s‚µ‚Ä2ŸŒ³”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-'   Function        select_rowWise      Select•¶‚ğ”­s‚µ‚Äs‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-'   Function        select_columnWise   Select•¶‚ğ”­s‚µ‚Ä—ñ‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
-'   Function        exec                insert•¶‚âdelete•¶‚ğÀs‚·‚é
-'   Function        rowSize             ƒe[ƒuƒ‹‚ÌƒŒƒR[ƒh”
-'   Function        colSize             ƒe[ƒuƒ‹‚ÌƒJƒ‰ƒ€”
-'   Function        get_data            Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ÌƒRƒs[‚ğ•Ô‚·
-'   Function        move_data           Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ğmove‚µ‚Ä•Ô‚·
-'   Function        insert_expr         insert•¶
-'   Function        insert_expr_        insert•¶ijag”z—ñ‚Ü‚½‚Í2ŸŒ³”z—ñj
-'   Function        SQLDrivers          ƒCƒ“ƒXƒg[ƒ‹‚³‚ê‚Ä‚¢‚éODBCƒhƒ‰ƒCƒo”z—ñ‚ğ•Ô‚·
-'   Function        excel_expr          ExcelƒuƒbƒN‚ÉÚ‘±‚·‚é‚½‚ß‚ÌÚ‘±•¶š—ñ
-'   Function        mdb_expr            accessdb‚ÌÚ‘±•¶š—ñ
-'   Function        sqlServer_expr      SQL Server‚ÌÚ‘±•¶š—ñ
+'   Function        connect             æ¥ç¶šæ–‡å­—åˆ—ã‚’ç™ºè¡Œã—ã¦ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ã«æ¥ç¶š
+'   Sub             disconnect          æ¥ç¶šæ–­
+'   Sub             disconnect_all      ã™ã¹ã¦ã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®æ¥ç¶šã‚’æ–­
+'   Function        setTimeout          ã‚¿ã‚¤ãƒ ã‚¢ã‚¦ãƒˆã™ã‚‹ç§’æ•°ã‚’è¨­å®š
+'   Sub             clear               ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰ãƒ‡ãƒ¼ã‚¿ã¨ãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’æ¶ˆå»
+'   Property Get    last_connected      æœ€å¾Œã«æˆåŠŸã—ãŸæ¥ç¶šæ–‡å­—åˆ—ã‚‚ã—ãã¯ã‚¨ãƒ©ãƒ¼æƒ…å ±ã®ãå–å¾—
+'   Property Get    last_SQL            æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSQLæ–‡å­—åˆ—ã®å–å¾—
+'   Property Get    last_elapsed        æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSELECTæ–‡ã§ã‹ã‹ã£ãŸæ™‚é–“ (ãƒŸãƒªç§’)
+'   Property Get    last_execError      æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸexecæ–‡ã®ã‚¨ãƒ©ãƒ¼è¡Œã¨ã‚¨ãƒ©ãƒ¼å†…å®¹
+'   Property Get    last_queryError     æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸselectæ–‡ç­‰ã®ã‚¨ãƒ©ãƒ¼
+'   Function        tableList           ãƒ†ãƒ¼ãƒ–ãƒ«ä¸€è¦§å–å¾—
+'   Function        tableAttribute      ãƒ†ãƒ¼ãƒ–ãƒ«ã® Attribute
+'   Function        read_header         Selectæ–‡ã‚’ç™ºè¡Œã—ã¦ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+'   Function        get_header          ãƒ¡ãƒ³ãƒã«æ ¼ç´ã•ã‚ŒãŸãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’å–å¾—ã™ã‚‹
+'   Function        select_flat         Selectæ–‡ã‚’ç™ºè¡Œã—ã¦2æ¬¡å…ƒé…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+'   Function        select_rowWise      Selectæ–‡ã‚’ç™ºè¡Œã—ã¦è¡Œã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+'   Function        select_columnWise   Selectæ–‡ã‚’ç™ºè¡Œã—ã¦åˆ—ã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
+'   Function        exec                insertæ–‡ã‚„deleteæ–‡ã‚’å®Ÿè¡Œã™ã‚‹
+'   Function        rowSize             ãƒ†ãƒ¼ãƒ–ãƒ«ã®ãƒ¬ã‚³ãƒ¼ãƒ‰æ•°
+'   Function        colSize             ãƒ†ãƒ¼ãƒ–ãƒ«ã®ã‚«ãƒ©ãƒ æ•°
+'   Function        get_data            Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã®ã‚³ãƒ”ãƒ¼ã‚’è¿”ã™
+'   Function        move_data           Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’moveã—ã¦è¿”ã™
+'   Function        insert_expr         insertæ–‡
+'   Function        insert_expr_        insertæ–‡ï¼ˆjagé…åˆ—ã¾ãŸã¯2æ¬¡å…ƒé…åˆ—ï¼‰
+'   Function        SQLDrivers          ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã•ã‚Œã¦ã„ã‚‹ODBCãƒ‰ãƒ©ã‚¤ãƒé…åˆ—ã‚’è¿”ã™
+'   Function        excel_expr          Excelãƒ–ãƒƒã‚¯ã«æ¥ç¶šã™ã‚‹ãŸã‚ã®æ¥ç¶šæ–‡å­—åˆ—
+'   Function        mdb_expr            accessdbã®æ¥ç¶šæ–‡å­—åˆ—
+'   Function        sqlServer_expr      SQL Serverã®æ¥ç¶šæ–‡å­—åˆ—
 '*********************************************************************************
 
 Private Declare PtrSafe Sub terminateODBC Lib "vbODBC.dll" (ByVal n As Long)
@@ -98,7 +98,7 @@ Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
 
 Private Declare PtrSafe Function GetTickCount Lib "kernel32.dll" () As Long
 
-Private connectionString    As String    ' Ú‘±•¶š—ñ‚à‚µ‚­‚ÍÚ‘±ƒGƒ‰[î•ñ
+Private connectionString    As String    ' æ¥ç¶šæ–‡å­—åˆ—ã‚‚ã—ãã¯æ¥ç¶šã‚¨ãƒ©ãƒ¼æƒ…å ±
 Private mySQL_              As String
 Private myheader_           As Variant
 Private mydata_             As Variant
@@ -115,7 +115,7 @@ Private Sub Class_Terminate()
     clear
 End Sub
 
-' Ú‘±•¶š—ñ‚ğ”­s‚µ‚Äƒf[ƒ^ƒx[ƒX‚ÉÚ‘±
+' æ¥ç¶šæ–‡å­—åˆ—ã‚’ç™ºè¡Œã—ã¦ãƒ‡ãƒ¼ã‚¿ãƒ™ãƒ¼ã‚¹ã«æ¥ç¶š
 Public Function connect(ByVal connectionExpr As String) As Boolean
     Dim expr As Variant:    expr = connectionExpr
     connect = (0 <= initODBC(myNo_, expr))
@@ -126,72 +126,68 @@ Public Function connect(ByVal connectionExpr As String) As Boolean
     End If
 End Function
 
-' Ú‘±’f
+' æ¥ç¶šæ–­
 Public Sub disconnect()
     Call terminateODBC(myNo_)
 End Sub
 
-' ‚·‚×‚Ä‚ÌƒIƒuƒWƒFƒNƒg‚ğÚ‘±’f
+' ã™ã¹ã¦ã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’æ¥ç¶šæ–­
 Public Sub disconnect_all()
     Call terminateODBC_all
 End Sub
 
-' ƒ^ƒCƒ€ƒAƒEƒg‚·‚é•b”‚ğİ’è
+' ã‚¿ã‚¤ãƒ ã‚¢ã‚¦ãƒˆã™ã‚‹ç§’æ•°ã‚’è¨­å®š
 Public Function setTimeout(ByVal s As Long) As Boolean
     setTimeout = (0 < setQueryTimeout(myNo_, s))
 End Function
 
-' ƒwƒbƒ_iƒJƒ‰ƒ€jƒf[ƒ^‚Æƒe[ƒuƒ‹ƒf[ƒ^‚ğÁ‹
+' ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰ãƒ‡ãƒ¼ã‚¿ã¨ãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’æ¶ˆå»
 Public Sub clear()
     myheader_ = Empty
     mydata_ = Empty
 End Sub
 
-' ÅŒã‚É¬Œ÷‚µ‚½Ú‘±•¶š—ñ‚à‚µ‚­‚ÍƒGƒ‰[î•ñ‚Ìæ“¾
+' æœ€å¾Œã«æˆåŠŸã—ãŸæ¥ç¶šæ–‡å­—åˆ—ã‚‚ã—ãã¯ã‚¨ãƒ©ãƒ¼æƒ…å ±ã®å–å¾—
 Public Property Get last_connected() As String
     last_connected = connectionString
 End Property
 
-' ÅŒã‚É”­s‚³‚ê‚½SQL•¶š—ñ‚Ìæ“¾
+' æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSQLæ–‡å­—åˆ—ã®å–å¾—
 Public Property Get last_SQL() As String
     last_SQL = mySQL_
 End Property
 
-' ÅŒã‚É”­s‚³‚ê‚½SELECT•¶‚Å‚©‚©‚Á‚½ŠÔiƒ~ƒŠ•bj
+' æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸSELECTæ–‡ã§ã‹ã‹ã£ãŸæ™‚é–“ï¼ˆãƒŸãƒªç§’ï¼‰
 Public Property Get last_elapsed() As Long
     last_elapsed = laptime_
 End Property
 
-'ÅŒã‚É”­s‚³‚ê‚½exec•¶‚ÌƒGƒ‰[s‚ÆƒGƒ‰[“à—e
+'æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸexecæ–‡ã®ã‚¨ãƒ©ãƒ¼è¡Œã¨ã‚¨ãƒ©ãƒ¼å†…å®¹
 Public Property Get last_execError() As Variant
     last_execError = myErrorNo_
 End Property
 
-'ÅŒã‚É”­s‚³‚ê‚½select•¶“™‚ÌƒGƒ‰[
+'æœ€å¾Œã«ç™ºè¡Œã•ã‚ŒãŸselectæ–‡ç­‰ã®ã‚¨ãƒ©ãƒ¼
 Public Property Get last_queryError() As Variant
     last_queryError = getStatementError(myNo_)
 End Property
 
 
-' ƒe[ƒuƒ‹ˆê——æ“¾
+' ãƒ†ãƒ¼ãƒ–ãƒ«ä¸€è¦§å–å¾—
 Function tableList(Optional ByRef schemaName As Variant, _
                         Optional ByVal type_ As String = "") As Variant
     Dim ret As Variant
     ret = table_list_all(myNo_, IIf(IsMissing(schemaName), "", schemaName))
     If IsEmpty(ret(0)) Then Exit Function
-    If IsMissing(schemaName) Then
-        tableList = catC(ret(1), ret(2))
-    Else
-        tableList = catC(catC(ret(0), ret(1)), ret(2))
-    End If
+    tableList = catC(catC(ret(0), ret(1)), ret(2))
     If type_ <> "" Then
         tableList = filterR(tableList, _
                 mapF(p_Like(p_StrConv(, vbLowerCase), StrConv(type_, vbLowerCase)), ret(2)))
     End If
 End Function
 
-' ƒe[ƒuƒ‹‚Ì Attribute
-' —ñ–¼AŒ^–¼Aƒf[ƒ^’·A¸“xA‘®«i1:ƒL[, -1:Nullable, 0:‘¼j
+' ãƒ†ãƒ¼ãƒ–ãƒ«ã® Attribute
+' åˆ—åã€å‹åã€ãƒ‡ãƒ¼ã‚¿é•·ã€ç²¾åº¦ã€å±æ€§ï¼ˆ1:ã‚­ãƒ¼, -1:Nullable, 0:ä»–ï¼‰
 Public Function tableAttribute(ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
     Dim tmp As Variant
@@ -205,7 +201,7 @@ Public Function tableAttribute(ByRef schemaName As Variant, _
     tableAttribute = subM(foldl1(p_catC, move_many(tmp(0), tmp(1), tmp(2), tmp(3), tmp(4))), s)
 End Function
 
-' Select•¶‚ğ”­s‚µ‚Äƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğƒƒ“ƒo‚ÉŠi”[‚·‚é
+' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦ãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
 Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
@@ -217,7 +213,7 @@ Public Function read_header(ByVal sqlExpr As String) As vb_ODBC
     Set read_header = Me
 End Function
 
-' ƒƒ“ƒo‚ÉŠi”[‚³‚ê‚½ƒwƒbƒ_iƒJƒ‰ƒ€jî•ñ‚ğæ“¾‚·‚é
+' ãƒ¡ãƒ³ãƒã«æ ¼ç´ã•ã‚ŒãŸãƒ˜ãƒƒãƒ€ï¼ˆã‚«ãƒ©ãƒ ï¼‰æƒ…å ±ã‚’å–å¾—ã™ã‚‹
 Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Variant
     If transpose_ Then
         get_header = transpose(myheader_)
@@ -226,7 +222,7 @@ Public Function get_header(Optional ByVal transpose_ As Boolean = False) As Vari
     End If
 End Function
 
-' Select•¶‚ğ”­s‚µ‚Ä2ŸŒ³”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦2æ¬¡å…ƒé…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
 Public Function select_flat(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
@@ -236,7 +232,7 @@ Public Function select_flat(ByVal sqlExpr As String) As vb_ODBC
     Set select_flat = Me
 End Function
 
-' Select•¶‚ğ”­s‚µ‚Äs‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦è¡Œã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
 Public Function select_rowWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
@@ -246,7 +242,7 @@ Public Function select_rowWise(ByVal sqlExpr As String) As vb_ODBC
     Set select_rowWise = Me
 End Function
 
-' Select•¶‚ğ”­s‚µ‚Ä—ñ‚Ì”z—ñ‚Æ‚µ‚Äƒƒ“ƒo‚ÉŠi”[‚·‚é
+' Selectæ–‡ã‚’ç™ºè¡Œã—ã¦åˆ—ã®é…åˆ—ã¨ã—ã¦ãƒ¡ãƒ³ãƒã«æ ¼ç´ã™ã‚‹
 Public Function select_columnWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
@@ -256,7 +252,7 @@ Public Function select_columnWise(ByVal sqlExpr As String) As vb_ODBC
     Set select_columnWise = Me
 End Function
 
-' insert•¶‚âdelete•¶‚ğÀs‚·‚é
+' insertæ–‡ã‚„deleteæ–‡ã‚’å®Ÿè¡Œã™ã‚‹
 Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     laptime_ = GetTickCount()
     If IsArray(sqlExpr) Then
@@ -268,27 +264,27 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     Set exec = Me
 End Function
 
-' ƒe[ƒuƒ‹‚ÌƒŒƒR[ƒh”
+' ãƒ†ãƒ¼ãƒ–ãƒ«ã®ãƒ¬ã‚³ãƒ¼ãƒ‰æ•°
 Public Function rowSize() As Long
     rowSize = Haskell_2_stdFun.rowSize(mydata_)
 End Function
 
-' ƒe[ƒuƒ‹‚ÌƒJƒ‰ƒ€”
+' ãƒ†ãƒ¼ãƒ–ãƒ«ã®ã‚«ãƒ©ãƒ æ•°
 Public Function colSize() As Long
     colSize = Haskell_2_stdFun.colSize(mydata_)
 End Function
 
-' Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ÌƒRƒs[‚ğ•Ô‚·
+' Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã®ã‚³ãƒ”ãƒ¼ã‚’è¿”ã™
 Public Function get_data() As Variant
     get_data = mydata_
 End Function
 
-' Select ‚µ‚½ƒe[ƒuƒ‹ƒf[ƒ^‚ğmove‚µ‚Ä•Ô‚·
+' Select ã—ãŸãƒ†ãƒ¼ãƒ–ãƒ«ãƒ‡ãƒ¼ã‚¿ã‚’moveã—ã¦è¿”ã™
 Public Function move_data() As Variant
     Call swapVariant(move_data, mydata_)
 End Function
 
-' insert•¶
+' insertæ–‡
 Public Function insert_expr(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As String
@@ -318,7 +314,7 @@ Public Function insert_expr(ByVal table_name As String, _
             ");"
 End Function
 
-' insert•¶ijag”z—ñ‚Ü‚½‚Í2ŸŒ³”z—ñj
+' insertæ–‡ï¼ˆjagé…åˆ—ã¾ãŸã¯2æ¬¡å…ƒé…åˆ—ï¼‰
 Public Function insert_expr_(ByVal table_name As String, _
                                 ByRef attr As Variant, _
                                     ByRef values As Variant) As Variant
@@ -337,7 +333,7 @@ Public Function insert_expr_(ByVal table_name As String, _
     swapVariant insert_expr_, ret
 End Function
 
-' ƒCƒ“ƒXƒg[ƒ‹‚³‚ê‚Ä‚¢‚éODBCƒhƒ‰ƒCƒo”z—ñ‚ğ•Ô‚·
+' ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã•ã‚Œã¦ã„ã‚‹ODBCãƒ‰ãƒ©ã‚¤ãƒé…åˆ—ã‚’è¿”ã™
 Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
     Dim buf As String, ret As Byte, retL As Integer
     buf = Space(IIf(0 < buflen, buflen, 2 * 1024))
@@ -345,7 +341,7 @@ Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
     SQLDrivers = Split(Left(buf, retL - 2), vbNullChar)
 End Function
 
-' ExcelƒuƒbƒN‚ÉÚ‘±‚·‚é‚½‚ß‚ÌÚ‘±•¶š—ñ
+' Excelãƒ–ãƒƒã‚¯ã«æ¥ç¶šã™ã‚‹ãŸã‚ã®æ¥ç¶šæ–‡å­—åˆ—
 Public Function excel_expr(ByVal bookName As String, _
                            Optional ByVal readonly As Boolean = True) As String
     Dim drivers As Variant
@@ -365,7 +361,7 @@ Public Function excel_expr(ByVal bookName As String, _
     '               INSERT INTO [Sheet1$A1:D10] VALUES(
 End Function
 
-' accessdb‚ÌÚ‘±•¶š—ñ
+' accessdbã®æ¥ç¶šæ–‡å­—åˆ—
 Public Function mdb_expr(ByVal dbName As String) As String
     Dim drivers As Variant
     Dim i As Variant
@@ -374,7 +370,7 @@ Public Function mdb_expr(ByVal dbName As String) As String
     '               SELECT * FROM MSysNameMap
 End Function
 
-' SQL Server‚ÌÚ‘±•¶š—ñ
+' SQL Serverã®æ¥ç¶šæ–‡å­—åˆ—
 Public Function sqlServer_expr(ByVal server As String, _
                                ByVal dbName As String, _
                                Optional ByVal uid As String = "", _
