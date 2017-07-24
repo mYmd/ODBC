@@ -19,28 +19,28 @@ void Too_Late_To_Destruct()
 
 namespace mymd  {
 
-odbc_raii_env::odbc_raii_env() : henv(0)
+odbc_raii_env::odbc_raii_env() noexcept : henv(0)
 {   }
 
-odbc_raii_env::~odbc_raii_env()
+odbc_raii_env::~odbc_raii_env() noexcept
 {
     if (!too_late_to_destruct)
         ::SQLFreeEnv(henv);
 }
 
-void odbc_raii_env::AllocHandle()
+bool odbc_raii_env::AllocHandle() noexcept
 {
     auto rc = ::SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
-    if (SQL_SUCCESS != rc) throw rc;
+    if (SQL_SUCCESS != rc)  return false;
     rc = ::SQLSetEnvAttr(henv, SQL_ATTR_ODBC_VERSION, reinterpret_cast<void*>(SQL_OV_ODBC3), 0);
-    if (SQL_SUCCESS !=rc) throw rc;
+    return SQL_SUCCESS ==rc;
 }
 
 //********************************************************
-odbc_raii_connect::odbc_raii_connect() : hdbc(0)
+odbc_raii_connect::odbc_raii_connect() noexcept : hdbc(0)
 {}
 
-odbc_raii_connect::~odbc_raii_connect()
+odbc_raii_connect::~odbc_raii_connect() noexcept
 {
     if (!too_late_to_destruct)
     {
@@ -49,19 +49,19 @@ odbc_raii_connect::~odbc_raii_connect()
     }
 }
 
-void odbc_raii_connect::AllocHandle(const odbc_raii_env& env)
+bool odbc_raii_connect::AllocHandle(const odbc_raii_env& env) noexcept
 {
     auto const rc = env.invoke(
         [=](HENV x) { return ::SQLAllocHandle(SQL_HANDLE_DBC, x, &hdbc); }
     );
-    if (SQL_SUCCESS != rc) throw rc;
+    return SQL_SUCCESS == rc;
 }
 
 //********************************************************
-odbc_raii_statement::odbc_raii_statement() : hstmt(0)
+odbc_raii_statement::odbc_raii_statement() noexcept : hstmt(0)
 {}
 
-odbc_raii_statement::~odbc_raii_statement()
+odbc_raii_statement::~odbc_raii_statement() noexcept
 {
     if (!too_late_to_destruct)
         ::SQLFreeStmt(hstmt, SQL_DROP);
@@ -108,10 +108,10 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
 }
 
 //********************************************************
-cursor_colser::cursor_colser(const odbc_raii_statement& h, bool b) : h_(h), close_(b)
+cursor_colser::cursor_colser(const odbc_raii_statement& h, bool b) noexcept : h_(h), close_(b)
 {   }
 
-cursor_colser::~cursor_colser()
+cursor_colser::~cursor_colser() noexcept
 {
     if (close_)
         h_.invoke(
@@ -121,24 +121,23 @@ cursor_colser::~cursor_colser()
 
 //********************************************************
 
-odbc_set::odbc_set(const tstring& connectName)
+odbc_set::odbc_set(const tstring& connectName) noexcept
 {
-    env.AllocHandle();
-    con.AllocHandle(env);
-    errorMessage_ = st.AllocHandle(connectName, con);
+    if ( env.AllocHandle() && con.AllocHandle(env) )
+        errorMessage_ = st.AllocHandle(connectName, con);
 }
 
-odbc_raii_statement& odbc_set::stmt()
+odbc_raii_statement& odbc_set::stmt() noexcept
 {
     return st;
 }
 
-bool odbc_set::isError() const
+bool odbc_set::isError() const noexcept
 {
     return 0 < errorMessage_.size();
 }
 
-void odbc_set::setErrorMessage(tstring && t)
+void odbc_set::setErrorMessage(tstring && t) noexcept
 {
     errorMessage_ = std::move(t);
 }
@@ -150,7 +149,7 @@ tstring odbc_set::errorMessage() const
 
 //********************************************************
 
-RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt)
+RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) noexcept
 {
     auto sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
     return stmt.invoke(
@@ -159,7 +158,7 @@ RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt)
 }
 //********************************************************
 
-tstring getTypeStr(SQLSMALLINT type)
+tstring getTypeStr(SQLSMALLINT type) noexcept
 {
     tstring ret;
     switch (type)
