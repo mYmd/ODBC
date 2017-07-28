@@ -21,6 +21,8 @@ Option Explicit
 '   (Function p_getTitleFromHTMLAnchor)
 '   Function    wTable2m            Wordのテーブルから配列を取得
 '   Function    downloadFiles       URLで指定したファイルのダウンロード
+'   Function    encodeBase64        ファイルをBase64エンコード（binary -> text）
+'   Function    decodeBase64        ファイルをBase64デコード（text -> binary）
 '*********************************************************************************
 
 ' Excelシートのセル範囲から配列を取得（値のみ）
@@ -102,7 +104,7 @@ Public Function getTextFile(ByVal fileName As String, _
         .Charset = Charset
         .LoadFromFile fileName
         If 0 < head_n Then
-            .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+            .LineSeparator = IIf(line_end = vbCr, Asc(vbCr), IIf(line_end = vbLf, Asc(vbLf), -1))
             For i = 1 To head_n
                 lineS = .ReadText(-2)   'adReadLine
                 getTextFile = getTextFile & lineS & line_end
@@ -174,7 +176,7 @@ Public Function getURLText(ByVal url As String, _
         .Type = 2       'ADODB.Stream.adTypeText
         .Charset = Charset
         If 0 < head_n Then
-            .LineSeparator = IIf(line_end = vbCr, 13, IIf(line_end = vbLf, 10, -1))
+            .LineSeparator = IIf(line_end = vbCr, Asc(vbCr), IIf(line_end = vbLf, Asc(vbLf), -1))
             For i = 1 To head_n
                 lineS = .ReadText(-2)   'adReadLine
                 getURLText = getURLText & lineS & line_end
@@ -454,3 +456,55 @@ End Function
         End Select
 closeFun:
     End Function
+
+' ファイルをBase64エンコード（binary -> text）
+Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As String
+    Dim elm As Object
+    On Error Resume Next
+    Set elm = CreateObject("MSXML2.DOMDocument").CreateElement("base64")
+    With CreateObject("ADODB.Stream")
+        .Type = 1   'adTypeBinary
+        .Open
+        .LoadFromFile fromFile
+        elm.DataType = "bin.base64"
+        elm.nodeTypedValue = .Read(-1)  'adReadAll
+        encodeBase64 = elm.Text
+        .Close
+    End With
+    With CreateObject("ADODB.Stream")
+        .Open
+        .Position = 0
+        .Type = 2    'ADODB.Stream.adTypeText
+        .Charset = "UTF-8"
+        .WriteText encodeBase64, 0      ' adWriteChar
+        .SaveToFile toFile, 2   ' adSaveCreateOverWrite
+        .Close
+    End With
+End Function
+ 
+' ファイルをBase64デコード（text -> binary）
+Function decodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boolean
+    Dim elm As Object
+    Dim sss As String
+    On Error Resume Next
+    Set elm = CreateObject("MSXML2.DOMDocument").CreateElement("base64")
+    With CreateObject("ADODB.Stream")
+        .Open
+        .Position = 0
+        .Type = 2   'adTypeText
+        .Charset = "UTF-8"
+        .LoadFromFile fromFile
+        elm.DataType = "bin.base64"
+        elm.Text = .ReadText  'adReadAll
+        .Close
+    End With
+    With CreateObject("ADODB.Stream")
+        .Type = 1   'adTypeBinary
+        .Open
+        .Write elm.nodeTypedValue
+        .SaveToFile toFile, 2         'adSaveCreateOverWrite
+        .Close
+    End With
+    decodeBase64 = True
+End Function
+
