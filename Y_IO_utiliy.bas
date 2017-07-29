@@ -458,7 +458,11 @@ closeFun:
     End Function
 
 ' ファイルをBase64エンコード（binary -> text）
-Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As String
+Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boolean
+    With CreateObject("Scripting.FileSystemObject")
+        If Not .FileExists(fromFile) Then Exit Function
+        If Not .FolderExists(.GetParentFolderName(toFile)) Then Exit Function
+    End With
     Dim elm As Object
     On Error Resume Next
     Set elm = CreateObject("MSXML2.DOMDocument").CreateElement("base64")
@@ -468,7 +472,6 @@ Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As Strin
         .LoadFromFile fromFile
         elm.DataType = "bin.base64"
         elm.nodeTypedValue = .Read(-1)  'adReadAll
-        encodeBase64 = elm.Text
         .Close
     End With
     With CreateObject("ADODB.Stream")
@@ -476,14 +479,19 @@ Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As Strin
         .Position = 0
         .Type = 2    'ADODB.Stream.adTypeText
         .Charset = "UTF-8"
-        .WriteText encodeBase64, 0      ' adWriteChar
+        .WriteText elm.Text, 0          ' adWriteChar
         .SaveToFile toFile, 2   ' adSaveCreateOverWrite
         .Close
     End With
+    encodeBase64 = True
 End Function
  
 ' ファイルをBase64デコード（text -> binary）
 Function decodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boolean
+    With CreateObject("Scripting.FileSystemObject")
+        If Not .FileExists(fromFile) Then Exit Function
+        If Not .FolderExists(.GetParentFolderName(toFile)) Then Exit Function
+    End With
     Dim elm As Object
     Dim sss As String
     On Error Resume Next
@@ -507,4 +515,3 @@ Function decodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boole
     End With
     decodeBase64 = True
 End Function
-
