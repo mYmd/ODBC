@@ -171,14 +171,14 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header
             elem.resize(col_N);
         };
         header_getter   header_func;
-        auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
-            tstring{ bstr },
-            header_func,
-            init_func,
-            elem_func,
-            add_func);
-        ::VariantClear(header);
-        std::swap(*header, header_func.getHeader());
+        auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
+                                        tstring{ bstr },
+                                        header_func,
+                                        init_func,
+                                        elem_func,
+                                        add_func);
+                                        ::VariantClear(header);
+                                        std::swap(*header, header_func.getHeader());
         return vec2VArray(std::move(vec));
     }
     catch (const std::exception&)
@@ -236,6 +236,54 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL_expr, VARIANT* header) n
     catch (const std::exception&)
     {
         return iVariant();
+    }
+}
+
+#if  defined _M_X64
+using vbLongLong = __int64;
+#else
+using vbLongLong = __int32;
+#endif
+
+// 行ごとのコールバック
+__int32 __stdcall selectODBC_map(__int32 myNo, VARIANT* SQL, VARIANT* header, vbLongLong fun, VARIANT* param) noexcept
+{
+    using vbCallbackFunc_t = __int32 (__stdcall *)(__int32, VARIANT&, VARIANT&);
+    auto callback = reinterpret_cast<vbCallbackFunc_t>(fun);
+    auto bstr = getBSTR(SQL);
+    if (!callback || !bstr || myNo < 0 || vODBCStmt_size() <= myNo)        return 0;
+    try
+    {
+        std::vector<VARIANT> elem;
+        SQLSMALLINT col_N{ 0 };
+        __int32 ret{ 0 };
+        auto init_func = [&](SQLSMALLINT c) {
+            elem.resize(col_N = c);
+        };
+        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+            elem[j] = makeVariantFromSQLType(coltype, str);
+        };
+        auto add_func = [&](std::size_t n) {
+            auto v = vec2VArray(std::move(elem));
+            auto c = callback(ret = static_cast<__int32>(n), v, *param);
+            ::VariantClear(&v);
+            elem.resize(col_N);
+            return 0 != c;      // ここ
+        };
+        header_getter   header_func;
+        auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
+                                      tstring{ bstr },
+                                      header_func,
+                                      init_func,
+                                      elem_func,
+                                      add_func);
+        ::VariantClear(header);
+        std::swap(*header, header_func.getHeader());
+        return ret;
+    }
+    catch (const std::exception&)
+    {
+        return 0;
     }
 }
 
