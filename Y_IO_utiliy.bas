@@ -87,28 +87,36 @@ End Function
     End Function
 
 ' テキストファイルの配列読み込み
+' line_end = "" の時はテキスト全体がひとつの文字列で返る
 ' Charsetはshift-jisは明示的に指定しないとダメ
-' head_n : 試し読み先頭行数指定
+' head_n   : 試し読み先頭行数指定
+' head_cut : 先頭削除行数指定
 Public Function getTextFile(ByVal fileName As String, _
                             ByVal line_end As String, _
                             Optional ByVal Charset As String = "_autodetect_all", _
-                            Optional ByVal head_n As Long = -1) As Variant
+                            Optional ByVal head_n As Long = -1, _
+                            Optional ByVal head_cut As Long = 0) As Variant
     Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
     On Error GoTo closeAdoStream
     Dim i As Long
     Dim lineS As String
+    If head_n < 0 Then head_n = 2 ^ 30
     With ado
         .Open
         .Position = 0
         .Type = 2    'ADODB.Stream.adTypeText
         .Charset = Charset
         .LoadFromFile fileName
-        If 0 < head_n Then
+        If 0 < Len(line_end) And (0 < head_n Or 0 < head_cut) Then
             .LineSeparator = IIf(line_end = vbCr, Asc(vbCr), IIf(line_end = vbLf, Asc(vbLf), -1))
-            For i = 1 To head_n
-                lineS = .ReadText(-2)   'adReadLine
-                getTextFile = getTextFile & lineS & line_end
+            For i = 1 To head_cut Step 1
+                .SkipLine
             Next i
+            Do While i <= head_n And Not .EOS
+                lineS = .ReadText(-2)   'adReadLine
+                getTextFile = getTextFile & lineS & IIf(i = head_n Or .EOS, "", line_end)
+                i = i + 1
+            Loop
         Else
             getTextFile = .ReadText
         End If
@@ -213,24 +221,24 @@ Public Function urlDecode(ByVal s As String) As String
         begin = 1
         Dim ado As Object
         Set ado = CreateObject("ADODB.Stream")
-        Do While begin <= Len(s) And mid(s, begin) Like "*%??%??%??*"
-            If mid(s, begin, 9) Like "*%??%??%??*" Then
-                urlDecode = urlDecode & urlDecode_imple(mid(s, begin, 9), ado)
+        Do While begin <= Len(s) And Mid(s, begin) Like "*%??%??%??*"
+            If Mid(s, begin, 9) Like "*%??%??%??*" Then
+                urlDecode = urlDecode & urlDecode_imple(Mid(s, begin, 9), ado)
                 begin = begin + 9
             Else
                 theNext = InStr(begin + 1, s, "%")
                 If 0 < theNext Then
-                    urlDecode = urlDecode & mid(s, begin, theNext - begin)
+                    urlDecode = urlDecode & Mid(s, begin, theNext - begin)
                     begin = theNext
                 Else
-                    urlDecode = urlDecode & mid(s, begin)
+                    urlDecode = urlDecode & Mid(s, begin)
                     begin = Len(s) + 1
                 End If
             End If
         Loop
         Set ado = Nothing
         If begin < Len(s) Then
-            urlDecode = urlDecode & mid(s, begin)
+            urlDecode = urlDecode & Mid(s, begin)
         End If
     Else
         urlDecode = s
@@ -275,9 +283,9 @@ End Function
 
     Private Function urlDecode_imple(ByVal code As String, ByRef adodbStream As Object) As String
         Dim chars(0 To 2) As Byte
-        chars(0) = CLng("&H" & mid(code, 2, 2))
-        chars(1) = CLng("&H" & mid(code, 5, 2))
-        chars(2) = CLng("&H" & mid(code, 8, 2))
+        chars(0) = CLng("&H" & Mid(code, 2, 2))
+        chars(1) = CLng("&H" & Mid(code, 5, 2))
+        chars(2) = CLng("&H" & Mid(code, 8, 2))
         With adodbStream
             .Open
             .Type = 1       'ADODB.Stream.adTypeBinary
