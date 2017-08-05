@@ -121,15 +121,36 @@ cursor_colser::~cursor_colser() noexcept
 
 //********************************************************
 
-odbc_set::odbc_set(const tstring& connectName) noexcept
+odbc_set::odbc_set(const tstring& connectName, decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type) noexcept
 {
     if ( env.AllocHandle() && con.AllocHandle(env) )
         errorMessage_ = st.AllocHandle(connectName, con);
+    if ( cursor_type != SQL_CURSOR_FORWARD_ONLY )
+    {
+        auto ValuePtr = reinterpret_cast<SQLPOINTER>(static_cast<ULONG_PTR>(cursor_type));
+        st.invoke(
+            [=](HSTMT x) { return ::SQLSetStmtAttr(x, 
+                                                   SQL_ATTR_CURSOR_TYPE,
+                                                   ValuePtr,
+                                                   0);   }
+        );
+    }
 }
 
 odbc_raii_statement& odbc_set::stmt() noexcept
 {
     return st;
+}
+
+void odbc_set::set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept
+{
+    auto ValuePtr = reinterpret_cast<SQLPOINTER>(static_cast<ULONG_PTR>(cursor_type));
+    st.invoke(
+        [=](HSTMT x) { return ::SQLSetStmtAttr(x, 
+                                               SQL_ATTR_CURSOR_TYPE,
+                                               ValuePtr,
+                                               0);   }
+    );
 }
 
 bool odbc_set::isError() const noexcept

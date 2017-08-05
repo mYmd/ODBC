@@ -92,8 +92,10 @@ class odbc_set {
     odbc_raii_statement st;
     tstring             errorMessage_;
 public:
-    explicit odbc_set(const tstring& connectName) noexcept;
+    explicit odbc_set(const tstring& connectName,
+                      decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type = SQL_CURSOR_FORWARD_ONLY) noexcept;
     odbc_raii_statement& stmt() noexcept;
+    void set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept;
     bool isError() const noexcept;
     void setErrorMessage(tstring&&) noexcept;
     tstring errorMessage() const;
@@ -299,13 +301,14 @@ struct bool_sentinel {
 
 //******************************************************************
 
-template <typename FH, typename FI, typename FE, typename FA>
-std::size_t select_table(odbc_raii_statement const& stmt,
-                        tstring const&              sql_expr,
-                        FH&&                        header_func,
-                        FI&&                        init_func,
-                        FE&&                        elem_func,
-                        FA&&                        add_func    ) noexcept
+template <typename FH, typename FI, typename FE, typename FA, typename FtCur>
+std::size_t select_table(odbc_raii_statement const& stmt        ,
+                    tstring const&              sql_expr    ,
+                    FH&&                        header_func ,
+                    FI&&                        init_func   ,
+                    FE&&                        elem_func   ,
+                    FA&&                        add_func    ,
+                    FtCur&&                     fetch_expr  ) noexcept
 {
     try
     {
@@ -336,26 +339,25 @@ std::size_t select_table(odbc_raii_statement const& stmt,
             return 0;
         auto const StrSizeofColumn = column_t::bufferSize;
         TCHAR tcharBuffer[StrSizeofColumn];
-        auto const fetch_expr = [](HSTMT x) { return ::SQLFetch(x); };
         std::size_t counter{ 0 };
         while (true)
         {
             for (int j = 0; j < nresultcols; ++j)
                 buffer[j][0] = '\0';
-            auto const rc = stmt.invoke(fetch_expr);
+            auto const rc = stmt.invoke(std::forward<FtCur>(fetch_expr));
             if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
             {
                 for (SQLSMALLINT j = 0; j < nresultcols; ++j)
                 {
                     int mb = ::MultiByteToWideChar(CP_ACP,
-                        MB_PRECOMPOSED,
-                        reinterpret_cast<LPCSTR>(&buffer[j][0]),
-                        -1,
-                        tcharBuffer,
-                        StrSizeofColumn);
+                                                MB_PRECOMPOSED,
+                                            reinterpret_cast<LPCSTR>(&buffer[j][0]),
+                                            -1,
+                                            tcharBuffer,
+                                                StrSizeofColumn);
                     std::forward<FE>(elem_func)(j,
-                        (SQL_NULL_DATA == datastrlen[j]) ? nullptr : tcharBuffer,
-                        coltype[j]);
+                                (SQL_NULL_DATA == datastrlen[j]) ? nullptr : tcharBuffer,
+                                coltype[j]);
                 }
                 if (!(std::forward<FA>(add_func)(counter++), bp))
                     break;
@@ -371,6 +373,23 @@ std::size_t select_table(odbc_raii_statement const& stmt,
     {
         return 0;
     }
+}
+
+template <typename FH, typename FI, typename FE, typename FA>
+std::size_t select_table(odbc_raii_statement const& stmt        ,
+                        tstring const&              sql_expr    ,
+                        FH&&                        header_func ,
+                        FI&&                        init_func   ,
+                        FE&&                        elem_func   ,
+                        FA&&                        add_func    ) noexcept
+{
+    return select_table(stmt    ,
+                        sql_expr    ,
+                        std::forward<FH>(header_func)   ,
+                        std::forward<FI>(init_func)     ,
+                        std::forward<FE>(elem_func)     ,
+                        std::forward<FA>(add_func)      ,
+                        [](HSTMT x) { return ::SQLFetch(x); }   );
 }
 
 }   // namespace mymd
