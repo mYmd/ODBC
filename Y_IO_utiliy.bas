@@ -4,31 +4,31 @@ Attribute VB_Name = "Y_IO_utiliy"
 Option Explicit
 
 '*********************************************************************************
-'   IOŠÖ˜Aƒ†[ƒeƒBƒŠƒeƒB
+'   IOé–¢é€£ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£
 '*********************************************************************************
-'   Function    sheet2m             ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚ç”z—ñ‚ğæ“¾
-'   Sub         m2sheet             ”z—ñ‚ğExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚Éƒy[ƒXƒg
-'   Function    getRangeMatrix      ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚çRangeƒIƒuƒWƒFƒNƒg‚Ì”z—ñ‚ğæ“¾
-'   Function    getInterior         ƒIƒuƒWƒFƒNƒg‚ÌInteriorƒvƒƒpƒeƒB‚ğæ“¾
-'   Function    getTextFile         ƒeƒLƒXƒgƒtƒ@ƒCƒ‹‚Ì”z—ñ“Ç‚İ‚İ
-'   Sub         writeTextFile       ”z—ñ‚ÌƒeƒLƒXƒgƒtƒ@ƒCƒ‹‘‚«‚İ
-'   Function    getURLText          URL‚Åw’è‚³‚ê‚½ƒeƒLƒXƒg‚Ì”z—ñ“Ç‚İ‚İ
-'   Function    urlEncode           URLƒGƒ“ƒR[ƒh
-'   Function    urlDecode           URLƒfƒR[ƒh
-'   Sub         m2Clip              ”z—ñi2ŸŒ³ˆÈ‰ºj‚ğƒNƒŠƒbƒvƒ{[ƒh‚É“]‘—‚·‚é
-'   Function    HTMLDocFromText     HTMLƒeƒLƒXƒg‚©‚ç‚ÌHTMLDocumentƒIƒuƒWƒFƒNƒg
-'   Function    getTagsFromHTML     HTMLƒeƒLƒXƒg‚©‚ç‚Ìƒ^ƒO’Šo
+'   Function    sheet2m             Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰é…åˆ—ã‚’å–å¾—
+'   Sub         m2sheet             é…åˆ—ã‚’Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã«ãƒšãƒ¼ã‚¹ãƒˆ
+'   Function    getRangeMatrix      Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰Rangeã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®é…åˆ—ã‚’å–å¾—
+'   Function    getInterior         ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®Interiorãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’å–å¾—
+'   Function    getTextFile         ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ã®é…åˆ—èª­ã¿è¾¼ã¿
+'   Sub         writeTextFile       é…åˆ—ã®ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«æ›¸ãè¾¼ã¿
+'   Function    getURLText          URLã§æŒ‡å®šã•ã‚ŒãŸãƒ†ã‚­ã‚¹ãƒˆã®é…åˆ—èª­ã¿è¾¼ã¿
+'   Function    urlEncode           URLã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰
+'   Function    urlDecode           URLãƒ‡ã‚³ãƒ¼ãƒ‰
+'   Sub         m2Clip              é…åˆ—ï¼ˆ2æ¬¡å…ƒä»¥ä¸‹ï¼‰ã‚’ã‚¯ãƒªãƒƒãƒ—ãƒœãƒ¼ãƒ‰ã«è»¢é€ã™ã‚‹
+'   Function    HTMLDocFromText     HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®HTMLDocumentã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+'   Function    getTagsFromHTML     HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®ã‚¿ã‚°æŠ½å‡º
 '   (Function p_getTitleFromHTMLAnchor)
-'   Function    wTable2m            Word‚Ìƒe[ƒuƒ‹‚©‚ç”z—ñ‚ğæ“¾
-'   Function    downloadFiles       URL‚Åw’è‚µ‚½ƒtƒ@ƒCƒ‹‚Ìƒ_ƒEƒ“ƒ[ƒh
-'   Function    encodeBase64        ƒtƒ@ƒCƒ‹‚ğBase64ƒGƒ“ƒR[ƒhibinary -> textj
-'   Function    decodeBase64        ƒtƒ@ƒCƒ‹‚ğBase64ƒfƒR[ƒhitext -> binaryj
+'   Function    wTable2m            Wordã®ãƒ†ãƒ¼ãƒ–ãƒ«ã‹ã‚‰é…åˆ—ã‚’å–å¾—
+'   Function    downloadFiles       URLã§æŒ‡å®šã—ãŸãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰
+'   Function    encodeBase64        ãƒ•ã‚¡ã‚¤ãƒ«ã‚’Base64ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰ï¼ˆbinary -> textï¼‰
+'   Function    decodeBase64        ãƒ•ã‚¡ã‚¤ãƒ«ã‚’Base64ãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆtext -> binaryï¼‰
 '*********************************************************************************
 
-' ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚ç”z—ñ‚ğæ“¾i’l‚Ì‚İj
-' vec = TrueF1ŸŒ³”z—ñ‰»
-' vec = FaleF2ŸŒ³”z—ñiƒfƒtƒHƒ‹ƒgj
-' LBound = 0 ‚Ì”z—ñ‚Æ‚È‚é
+' Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰é…åˆ—ã‚’å–å¾—ï¼ˆå€¤ã®ã¿ï¼‰
+' vec = Trueï¼š1æ¬¡å…ƒé…åˆ—åŒ–
+' vec = Faleï¼š2æ¬¡å…ƒé…åˆ—ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆï¼‰
+' LBound = 0 ã®é…åˆ—ã¨ãªã‚‹
 Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*excel*" And TypeName(r) = "Range" Then
         If r.cells.Count = 1 Then
@@ -41,8 +41,8 @@ Public Function sheet2m(ByVal r As Object, Optional ByVal vec As Boolean = False
     End If
 End Function
 
-' ”z—ñ‚ğExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚Éƒy[ƒXƒgi¶ã‚ÌƒZƒ‹‚ğw’èj
-' vertical = TrueF1ŸŒ³”z—ñ‚ğc‚Éƒy[ƒXƒg‚·‚é
+' é…åˆ—ã‚’Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã«ãƒšãƒ¼ã‚¹ãƒˆï¼ˆå·¦ä¸Šã®ã‚»ãƒ«ã‚’æŒ‡å®šï¼‰
+' vertical = Trueï¼š1æ¬¡å…ƒé…åˆ—ã‚’ç¸¦ã«ãƒšãƒ¼ã‚¹ãƒˆã™ã‚‹
 Public Sub m2sheet(ByRef matrix As Variant, _
                    ByVal r As Object, _
                    Optional ByVal vertical As Boolean = False)
@@ -62,7 +62,7 @@ Public Sub m2sheet(ByRef matrix As Variant, _
     End If
 End Sub
 
-' ExcelƒV[ƒg‚ÌƒZƒ‹”ÍˆÍ‚©‚çRangeƒIƒuƒWƒFƒNƒg‚Ì”z—ñ‚ğæ“¾
+' Excelã‚·ãƒ¼ãƒˆã®ã‚»ãƒ«ç¯„å›²ã‹ã‚‰Rangeã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®é…åˆ—ã‚’å–å¾—
 Public Function getRangeMatrix(ByVal r As Object) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*excel*" And TypeName(r) = "Range" Then
         Dim i As Long, j As Long, ret As Variant
@@ -78,7 +78,7 @@ Public Function getRangeMatrix(ByVal r As Object) As Variant
     End If
 End Function
 
-' ƒIƒuƒWƒFƒNƒg‚ÌInteriorƒvƒƒpƒeƒB‚ğæ“¾
+' ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®Interiorãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’å–å¾—
 Public Function getInterior(ByRef Ob As Variant, ByRef dummuy As Variant) As Variant
     Set getInterior = Ob.Interior
 End Function
@@ -86,11 +86,11 @@ End Function
         p_getInterior = make_funPointer(AddressOf getInterior, firstParam, secondParam)
     End Function
 
-' ƒeƒLƒXƒgƒtƒ@ƒCƒ‹‚Ì”z—ñ“Ç‚İ‚İ
-' line_end = "" ‚Ì‚ÍƒeƒLƒXƒg‘S‘Ì‚ª‚Ğ‚Æ‚Â‚Ì•¶š—ñ‚Å•Ô‚é
-' Charset‚Íshift-jis‚Í–¾¦“I‚Éw’è‚µ‚È‚¢‚Æƒ_ƒ
-' head_n   : ‚µ“Ç‚İæ“ªs”w’è
-' head_cut : æ“ªíœs”w’è
+' ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ã®é…åˆ—èª­ã¿è¾¼ã¿
+' line_end = "" ã®æ™‚ã¯ãƒ†ã‚­ã‚¹ãƒˆå…¨ä½“ãŒã²ã¨ã¤ã®æ–‡å­—åˆ—ã§è¿”ã‚‹
+' Charsetã¯shift-jisã¯æ˜ç¤ºçš„ã«æŒ‡å®šã—ãªã„ã¨ãƒ€ãƒ¡
+' head_n   : è©¦ã—èª­ã¿å…ˆé ­è¡Œæ•°æŒ‡å®š
+' head_cut : å…ˆé ­å‰Šé™¤è¡Œæ•°æŒ‡å®š
 Public Function getTextFile(ByVal fileName As String, _
                             ByVal line_end As String, _
                             Optional ByVal Charset As String = "_autodetect_all", _
@@ -129,7 +129,7 @@ closeAdoStream:
     End If
 End Function
 
-' ”z—ñ‚ÌƒeƒLƒXƒgƒtƒ@ƒCƒ‹‘‚«‚İ
+' é…åˆ—ã®ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«æ›¸ãè¾¼ã¿
 Public Sub writeTextFile(ByRef data As Variant, _
                         ByVal fileName As String, _
                         ByVal Charset As String, _
@@ -154,8 +154,8 @@ closeAdoStream:
     Set ado = Nothing
 End Sub
 
-' URL‚Åw’è‚³‚ê‚½ƒeƒLƒXƒg‚Ì”z—ñ“Ç‚İ‚İ
-' head_n : ‚µ“Ç‚İæ“ªs”w’è
+' URLã§æŒ‡å®šã•ã‚ŒãŸãƒ†ã‚­ã‚¹ãƒˆã®é…åˆ—èª­ã¿è¾¼ã¿
+' head_n : è©¦ã—èª­ã¿å…ˆé ­è¡Œæ•°æŒ‡å®š
 Public Function getURLText(ByVal url As String, _
                            ByVal line_end As String, _
                            Optional ByVal Charset As String = "_autodetect_all", _
@@ -170,6 +170,8 @@ Public Function getURLText(ByVal url As String, _
         Else
             .Open "GET", url, False
         End If
+        .setRequestHeader "Pragma", "no-cache"
+        .setRequestHeader "Cache-Control", "no-cache"
         .Send
     End With
     Dim ado As Object:  Set ado = CreateObject("ADODB.Stream")
@@ -187,7 +189,7 @@ Public Function getURLText(ByVal url As String, _
             .LineSeparator = IIf(line_end = vbCr, Asc(vbCr), IIf(line_end = vbLf, Asc(vbLf), -1))
             For i = 1 To head_n
                 lineS = .ReadText(-2)   'adReadLine
-                getURLText = getURLText & lineS & line_end
+                getURLText = getURLText & lineS & IIf(i = head_n, "", line_end)
             Next i
         Else
             getURLText = .ReadText
@@ -202,7 +204,7 @@ closeObjects:
     End If
 End Function
 
-' URLƒGƒ“ƒR[ƒhiQlÀ‘•j
+' URLã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰ï¼ˆå‚è€ƒå®Ÿè£…ï¼‰
 Public Function urlEncode(ByVal s As String) As String
     Dim ado As Object
     Dim tmp As Variant
@@ -214,7 +216,7 @@ Public Function urlEncode(ByVal s As String) As String
     urlEncode = Join(tmp, "")
 End Function
 
-' URLƒfƒR[ƒhiQlÀ‘•j
+' URLãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆå‚è€ƒå®Ÿè£…ï¼‰
 Public Function urlDecode(ByVal s As String) As String
     If s Like "*%??%??%??*" Then
         Dim begin As Long, theNext As Long
@@ -248,7 +250,7 @@ End Function
     Private Function isKanaKanji(ByVal s As String) As Boolean
         isKanaKanji = False
         If 0 < Len(s) Then
-            If Left(s, 1) Like "[¦-ß]" Then
+            If Left(s, 1) Like "[ï½¦-ï¾Ÿ]" Then
                 isKanaKanji = True
             ElseIf Asc(Left(s, 1)) < 0 Then
                 isKanaKanji = True
@@ -299,7 +301,7 @@ End Function
         End With
     End Function
 
-' ”z—ñi2ŸŒ³ˆÈ‰ºj‚ğƒNƒŠƒbƒvƒ{[ƒh‚É“]‘—‚·‚é
+' é…åˆ—ï¼ˆ2æ¬¡å…ƒä»¥ä¸‹ï¼‰ã‚’ã‚¯ãƒªãƒƒãƒ—ãƒœãƒ¼ãƒ‰ã«è»¢é€ã™ã‚‹
 Public Sub m2Clip(ByRef data As Variant)
     Dim s As String
     Select Case Dimension(data)
@@ -323,16 +325,16 @@ Public Sub m2Clip(ByRef data As Variant)
     Set dOb = Nothing
 End Sub
 
-' HTMLƒeƒLƒXƒg‚©‚ç‚ÌHTMLDocumentƒIƒuƒWƒFƒNƒg
+' HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®HTMLDocumentã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
 Public Function HTMLDocFromText(ByVal htmlText As String) As Object    'As HtmlDocument
     Set HTMLDocFromText = CreateObject("htmlfile") 'New MSHTML.HTMLDocument
     HTMLDocFromText.Write htmlText
 End Function
 
-' HTMLƒeƒLƒXƒg‚©‚ç‚Ìƒ^ƒO’Šo
-' ƒvƒƒpƒeƒB‚Íˆø”prop‚Åw’è
-' innerText, outerText, innerHTML, outerHTML, href ‚Í•¶š—ñ‚Åw’è
-' ‚»‚êˆÈŠO‚Í p_getTitleFromHTMLAnchor ‚ğQÆ
+' HTMLãƒ†ã‚­ã‚¹ãƒˆã‹ã‚‰ã®ã‚¿ã‚°æŠ½å‡º
+' ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã¯å¼•æ•°propã§æŒ‡å®š
+' innerText, outerText, innerHTML, outerHTML, href ã¯æ–‡å­—åˆ—ã§æŒ‡å®š
+' ãã‚Œä»¥å¤–ã¯ p_getTitleFromHTMLAnchor ã‚’å‚ç…§
 Public Function getTagsFromHTML(ByVal htmlText As String, _
                                 ByVal tag As Variant, _
                                 ByVal prop As Variant) As Variant
@@ -373,7 +375,7 @@ Public Function getTagsFromHTML(ByVal htmlText As String, _
     Set doc = Nothing
 End Function
 
-'HTMLAnchorElement ‚©‚ç'Title'ƒvƒƒpƒeƒB‚ğæ“¾
+'HTMLAnchorElement ã‹ã‚‰'Title'ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’å–å¾—
     Private Function getTitleFromHTMLAnchor(ByRef anchor As Variant, _
                                             ByRef dummy As Variant) As Variant
         If TypeName(anchor) = "HTMLAnchorElement" Then
@@ -384,7 +386,7 @@ Public Function p_getTitleFromHTMLAnchor(Optional ByRef firstParam As Variant, O
     p_getTitleFromHTMLAnchor = make_funPointer(AddressOf getTitleFromHTMLAnchor, firstParam, secondParam)
 End Function
     
-' Word‚Ìƒe[ƒuƒ‹‚©‚ç”z—ñ‚ğæ“¾
+' Wordã®ãƒ†ãƒ¼ãƒ–ãƒ«ã‹ã‚‰é…åˆ—ã‚’å–å¾—
 Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean = False) As Variant
     If StrConv(Application.name, vbLowerCase) Like "*word*" And TypeName(t) = "Table" Then
         Dim ret As Variant, tmp As String
@@ -406,8 +408,8 @@ Public Function wTable2m(ByVal t As Object, Optional ByVal cutHeader As Boolean 
     End If
 End Function
 
-' URL‚Åw’è‚µ‚½ƒtƒ@ƒCƒ‹‚Ìƒ_ƒEƒ“ƒ[ƒh
-' fileNamesÈ—ª‚ÍƒŠƒ“ƒN–¼‚Ì’Ê‚èiÅŒã‚Ì'/'‚ÌŒã‚ë•”•ªj
+' URLã§æŒ‡å®šã—ãŸãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰
+' fileNamesçœç•¥æ™‚ã¯ãƒªãƒ³ã‚¯åã®é€šã‚Šï¼ˆæœ€å¾Œã®'/'ã®å¾Œã‚éƒ¨åˆ†ï¼‰
 Public Function downloadFiles(ByRef URLs As Variant, _
                               ByVal pathName As String, _
                               Optional ByRef fileNames As Variant, _
@@ -452,7 +454,7 @@ End Function
             .Send
         End With
         Select Case oo.Status       ' HTTP Result Code
-        Case Is <= 200          ' ƒŠƒNƒGƒXƒg¬Œ÷
+        Case Is <= 200          ' ãƒªã‚¯ã‚¨ã‚¹ãƒˆæˆåŠŸ
             With CreateObject("ADODB.Stream")
                 .Type = 1 ' ADODB.Stream.adTypeBinary
                 .Open
@@ -465,7 +467,7 @@ End Function
 closeFun:
     End Function
 
-' ƒtƒ@ƒCƒ‹‚ğBase64ƒGƒ“ƒR[ƒhibinary -> textj
+' ãƒ•ã‚¡ã‚¤ãƒ«ã‚’Base64ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰ï¼ˆbinary -> textï¼‰
 Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boolean
     With CreateObject("Scripting.FileSystemObject")
         If Not .FileExists(fromFile) Then Exit Function
@@ -494,7 +496,7 @@ Function encodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boole
     encodeBase64 = True
 End Function
  
-' ƒtƒ@ƒCƒ‹‚ğBase64ƒfƒR[ƒhitext -> binaryj
+' ãƒ•ã‚¡ã‚¤ãƒ«ã‚’Base64ãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆtext -> binaryï¼‰
 Function decodeBase64(ByVal fromFile As String, ByVal toFile As String) As Boolean
     With CreateObject("Scripting.FileSystemObject")
         If Not .FileExists(fromFile) Then Exit Function
