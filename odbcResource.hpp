@@ -269,7 +269,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
             if (pBuffer && pdatastrlen)
             {
                 auto dlen = collen[j];
-                (*pBuffer)[j].resize((0 < dlen && dlen+2 < StrSizeofColumn) ? dlen+2 : StrSizeofColumn);
+                (*pBuffer)[j].resize((0 < dlen && dlen+4 < StrSizeofColumn) ? dlen+4 : StrSizeofColumn);
                 rc = stmt.invoke(SQLBindColExpr);
             }
         }
