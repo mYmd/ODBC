@@ -61,7 +61,7 @@ namespace {
     };
 
     std::vector<std::vector<VARIANT>>
-        selectODBC_columnWise_imple(odbc_raii_statement&, BSTR, VARIANT*);
+        selectODBC_columnWise_imple(odbc_raii_statement&, BSTR, VARIANT&);
 
 }
 
@@ -81,7 +81,7 @@ void __stdcall terminateODBC_all() noexcept
     catch (const std::exception&) { }
 }
 
-__int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr) noexcept
+__int32 __stdcall initODBC(__int32& myNo, VARIANT& rawStr) noexcept
 {
     auto bstr = getBSTR(rawStr);
     if (!bstr)                     return -1;
@@ -91,8 +91,8 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr) noexcept
         auto p = std::make_unique<odbc_set>(connectName);
         if ( p->isError() )
         {
-            ::VariantClear(rawStr);
-            *rawStr = makeVariantFromSQLType(SQL_CHAR, p->errorMessage().data());
+            ::VariantClear(&rawStr);
+            rawStr = makeVariantFromSQLType(SQL_CHAR, p->errorMessage().data());
             return -1;
         }
         if ( 0 <= myNo && myNo < vODBCStmt_size() )
@@ -107,8 +107,8 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT* rawStr) noexcept
     }
     catch (const std::exception&)
     {
-        ::VariantClear(rawStr);
-        *rawStr = makeVariantFromSQLType(SQL_CHAR, _T("UnKnown Error"));
+        ::VariantClear(&rawStr);
+        rawStr = makeVariantFromSQLType(SQL_CHAR, _T("UnKnown Error"));
         return -1;
     }
     return myNo;
@@ -151,7 +151,7 @@ VARIANT __stdcall getStatementError(__int32 myNo) noexcept
     }
 }
 
-VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header) noexcept
+VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT const& SQL, VARIANT& header) noexcept
 {
     auto bstr = getBSTR(SQL);
     if (!bstr || myNo < 0 || vODBCStmt_size() <= myNo)        return iVariant();
@@ -177,8 +177,8 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header
                                         init_func,
                                         elem_func,
                                         add_func);
-                                        ::VariantClear(header);
-                                        std::swap(*header, header_func.getHeader());
+                                        ::VariantClear(&header);
+                                        std::swap(header, header_func.getHeader());
         return vec2VArray(std::move(vec));
     }
     catch (const std::exception&)
@@ -187,7 +187,7 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT* SQL, VARIANT* header
     }
 }
 
-VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL_expr, VARIANT* header) noexcept
+VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT const& SQL_expr, VARIANT& header) noexcept
 {
     auto sql = getBSTR(SQL_expr);
     if (!sql || myNo < 0 || vODBCStmt_size() <= myNo)       return iVariant();
@@ -206,7 +206,7 @@ VARIANT __stdcall selectODBC_columnWise(__int32 myNo, VARIANT* SQL_expr, VARIANT
     }
 }
 
-VARIANT __stdcall selectODBC(__int32 myNo, VARIANT* SQL_expr, VARIANT* header) noexcept
+VARIANT __stdcall selectODBC(__int32 myNo, VARIANT const& SQL_expr, VARIANT& header) noexcept
 {
     auto sql = getBSTR(SQL_expr);
     if (!sql || myNo < 0 || vODBCStmt_size() <= myNo)       return iVariant();
@@ -246,7 +246,7 @@ using vbLongLong = __int32;
 #endif
 
 // 行ごとのコールバック
-__int32 __stdcall selectODBC_map(__int32 myNo, VARIANT* SQL, VARIANT* header, vbLongLong fun, VARIANT* param) noexcept
+__int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& header, vbLongLong fun, VARIANT& param) noexcept
 {
     using vbCallbackFunc_t = __int32 (__stdcall *)(__int32, VARIANT&, VARIANT&);
     auto callback = reinterpret_cast<vbCallbackFunc_t>(fun);
@@ -265,7 +265,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT* SQL, VARIANT* header, vb
         };
         auto add_func = [&](std::size_t n) {
             auto v = vec2VArray(std::move(elem));
-            auto c = callback(ret = static_cast<__int32>(n), v, *param);
+            auto c = callback(ret = static_cast<__int32>(n), v, param);
             ::VariantClear(&v);
             elem.resize(col_N);
             return 0 != c;      // ここ
@@ -277,8 +277,8 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT* SQL, VARIANT* header, vb
                                       init_func,
                                       elem_func,
                                       add_func);
-        ::VariantClear(header);
-        std::swap(*header, header_func.getHeader());
+        ::VariantClear(&header);
+        std::swap(header, header_func.getHeader());
         return ret;
     }
     catch (const std::exception&)
@@ -287,7 +287,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT* SQL, VARIANT* header, vb
     }
 }
 
-VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL) noexcept
+VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT const& SQL) noexcept
 {
     auto bstr = getBSTR(SQL);
     if ( !bstr || myNo < 0 || vODBCStmt_size() <= myNo )    return iVariant();
@@ -303,11 +303,11 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT* SQL) noexcept
     return header_func.getHeader();
 }
 
-VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs) noexcept
+VARIANT __stdcall execODBC(__int32 myNo, VARIANT const& SQLs) noexcept
 {
     if ( myNo < 0 || vODBCStmt_size() <= myNo )         return iVariant();
-    if (!SQLs ||  0 == (VT_ARRAY & SQLs->vt))           return iVariant();
-    auto pArray = (0 == (VT_BYREF & SQLs->vt)) ? (SQLs->parray) : (*SQLs->pparray);
+    if (0 == (VT_ARRAY & SQLs.vt))                      return iVariant();
+    auto pArray = (0 == (VT_BYREF & SQLs.vt)) ? (SQLs.parray) : (*SQLs.pparray);
     if (!pArray || 1 != ::SafeArrayGetDim(pArray))      return iVariant();
     SAFEARRAYBOUND bounds = { 1,0 };
     {
@@ -356,7 +356,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT* SQLs) noexcept
 }
 
 // テーブル一覧
-VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName) noexcept
+VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexcept
 {
     auto schema_name_b = getBSTR(schemaName);
     if (!schema_name_b || myNo < 0 || vODBCStmt_size() <= myNo)
@@ -412,7 +412,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT* schemaName) noexcept
 //************************************************
 
 // テーブルにある全カラムの属性
-VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT* schemaName, VARIANT* tableName) noexcept
+VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, VARIANT const& tableName) noexcept
 {
     auto schema_name_b = getBSTR(schemaName);
     auto table_Name_b = getBSTR(tableName);
@@ -586,7 +586,7 @@ namespace {
     }
 
     std::vector<std::vector<VARIANT>>
-        selectODBC_columnWise_imple(odbc_raii_statement& st, BSTR sql, VARIANT* header)
+        selectODBC_columnWise_imple(odbc_raii_statement& st, BSTR sql, VARIANT& header)
     {
         std::vector<std::vector<VARIANT>> vec;
         auto init_func = [&](SQLSMALLINT c) {
@@ -603,8 +603,8 @@ namespace {
                             init_func,
                         elem_func,
                     add_func);
-        ::VariantClear(header);
-        std::swap(*header, header_func.getHeader());
+        ::VariantClear(&header);
+        std::swap(header, header_func.getHeader());
         return vec;
     }
 
