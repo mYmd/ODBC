@@ -266,6 +266,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& head
         auto add_func = [&](std::size_t n) {
             auto v = vec2VArray(std::move(elem));
             auto c = callback(ret = static_cast<__int32>(n), v, param);
+            ++ret;
             ::VariantClear(&v);
             elem.resize(col_N);
             return 0 != c;      // ‚±‚±
