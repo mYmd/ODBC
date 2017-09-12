@@ -498,7 +498,7 @@ namespace {
             long lOut;
             auto const vdr = ::VarI4FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &lOut);
             auto ret = iVariant(VT_I4);
-            ret.lVal = lOut;
+            ret.lVal = (vdr == S_OK)? lOut: 0;
             return ret;
         }
         case SQL_BIGINT:
@@ -506,7 +506,7 @@ namespace {
             LONG64  i64Out;
             auto const vdr = ::VarI8FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &i64Out);
             auto ret = iVariant(VT_I8);
-            ret.llVal = i64Out;
+            ret.llVal = (vdr == S_OK)? i64Out: 0;
             return ret;
         }
         case SQL_NUMERIC:   case SQL_DECIMAL:   case SQL_FLOAT: case SQL_REAL:  case SQL_DOUBLE:
@@ -514,7 +514,7 @@ namespace {
             double dOut;
             auto const vdr = ::VarR8FromStr(expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
             auto ret = iVariant(VT_R8);
-            ret.dblVal = dOut;
+            ret.dblVal = (vdr == S_OK)? dOut: 0.0;
             return ret;
         }
         case SQL_TYPE_DATE: case SQL_TYPE_TIME: case SQL_TYPE_TIMESTAMP:
