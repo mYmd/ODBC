@@ -66,6 +66,7 @@ Sub sample_downloadCppFiles()
     Call Y_IO_utiliy.downloadFiles(vector(files), "C:\tmp")     ' フォルダは適宜
 End Sub
 
+#If 0 Then
 ' vb_ODBC のサンプル
 Sub sumple_ODBC()
     Dim oo As vb_ODBC
@@ -98,6 +99,7 @@ Sub sumple_ODBC()
         '870001  小
     oo.disconnect
 End Sub
+#End If
 
 '本日のTTM
 Function MUFG_TTM_LAST(Optional ByVal currencyName = "USD") As Variant
@@ -168,7 +170,7 @@ Function make_p_replace_about(ByVal targetString1 As String, ByVal url As String
     If 2 <= sizeof(ins) Then
         If ins(0) = Len("about:/") And ins(0) + 1 < ins(1) Then
             Dim substr As String
-            substr = mid(targetString1, ins(0), ins(1) - ins(0) + 1)
+            substr = Mid(targetString1, ins(0), ins(1) - ins(0) + 1)
             Dim k As Long
             k = InStr(url, substr)
             If 0 < k Then
@@ -177,4 +179,19 @@ Function make_p_replace_about(ByVal targetString1 As String, ByVal url As String
         End If
     End If
 End Function
+
+' 1次元配列のランキング作成
+'（同順位が複数いても順位に隙間は空けない、0スタート）
+Function make_rank(ByRef m As Variant, Optional ByRef compFun As Variant) As Variant
+    Dim pred As Variant, si As Variant
+    pred = IIf(is_bindFun(compFun), compFun, p_less)
+    si = sortIndex_pred(m, pred)
+    pred(1) = ph_2: pred(2) = ph_1  ' 引数逆転
+    make_rank = self_zipWith(pred, subV(m, si), -1)
+    make_rank = scanl1(p_plus, make_rank)
+    permutate_back make_rank, si
+End Function
+    Function p_make_rank(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
+        p_make_rank = make_funPointer(AddressOf make_rank, firstParam, secondParam, 2)
+    End Function
 
