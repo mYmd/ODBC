@@ -39,6 +39,7 @@ Option Explicit
 '   Function        move_data           Select したテーブルデータをmoveして返す
 '   Function        insert_expr         insert文
 '   Function        insert_expr_        insert文（jag配列または2次元配列）
+'   Function        bulk_insert_expr    バルクInsert文（複数行）
 '   Function        SQLDrivers          インストールされているODBCドライバ配列を返す
 '   Function        excel_expr          Excelブックに接続するための接続文字列
 '   Function        mdb_expr            accessdbの接続文字列
@@ -353,6 +354,41 @@ Public Function insert_expr_(ByVal table_name As String, _
     End If
     swapVariant insert_expr_, ret
 End Function
+
+' バルクInsert文（複数行）
+Public Function bulk_insert_expr(ByVal table_name As String, _
+                                    ByRef attr As Variant, _
+                                        ByRef values As Variant) As String
+    Dim v As Variant, i As Long
+    v = makeM(Haskell_2_stdFun.rowSize(values))
+    If Dimension(values) = 1 Then
+        For i = 0 To UBound(v) Step 1
+            v(i) = bulk_insert_expr_1(getNth_b(values, i))
+        Next i
+    Else
+        For i = 0 To UBound(values) Step 1
+            v(i) = bulk_insert_expr_1(selectRow_b(values, i))
+        Next i
+    End If
+    bulk_insert_expr = "INSERT INTO " & table_name & " ("
+    bulk_insert_expr = bulk_insert_expr & Join(attr, ",") & ") VALUES "
+    bulk_insert_expr = bulk_insert_expr & Join(v, ",") & ";"
+End Function
+    
+    Private Function bulk_insert_expr_1(ByRef values As Variant) As String
+        Dim tmp As Variant:     tmp = values
+        Dim i As Long
+        For i = LBound(tmp) To UBound(tmp) Step 1
+            If IsNull(tmp(i)) Or IsEmpty(tmp(i)) Or IsObject(tmp(i)) Or IsArray(tmp(i)) Then
+                tmp(i) = "NULL"
+            ElseIf Not IsNumeric(tmp(i)) Or VarType(tmp(i)) = vbString Then
+                If 0 < Len(tmp(i)) Then
+                    tmp(i) = "'" & Replace(tmp(i), "'", "''") & "'"
+                End If
+            End If
+        Next i
+        bulk_insert_expr_1 = "(" & Join(tmp, ",") & ")"
+    End Function
 
 ' インストールされているODBCドライバ配列を返す
 Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
