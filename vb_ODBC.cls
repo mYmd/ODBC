@@ -356,9 +356,11 @@ Public Function insert_expr_(ByVal table_name As String, _
 End Function
 
 ' バルクInsert文（複数行）
+' max_record : ひとつのSQL文でINSERTできる最大行
 Public Function bulk_insert_expr(ByVal table_name As String, _
                                     ByRef attr As Variant, _
-                                        ByRef values As Variant) As String
+                                        ByRef values As Variant, _
+                                            ByVal max_record As Long) As Variant
     Dim v As Variant, i As Long
     v = makeM(Haskell_2_stdFun.rowSize(values))
     If Dimension(values) = 1 Then
@@ -366,28 +368,33 @@ Public Function bulk_insert_expr(ByVal table_name As String, _
             v(i) = bulk_insert_expr_1(getNth_b(values, i))
         Next i
     Else
-        For i = 0 To UBound(values) Step 1
+        For i = 0 To UBound(v) Step 1
             v(i) = bulk_insert_expr_1(selectRow_b(values, i))
         Next i
     End If
-    bulk_insert_expr = "INSERT INTO " & table_name & " ("
-    bulk_insert_expr = bulk_insert_expr & Join(attr, ",") & ") VALUES "
-    bulk_insert_expr = bulk_insert_expr & Join(v, ",") & ";"
+    Dim ret As Variant: ret = makeM((sizeof(v) + max_record - 1) \ max_record)
+    For i = 0 To UBound(ret) Step 1
+        ret(i) = "INSERT INTO " & table_name & " ("
+        ret(i) = ret(i) & Join(attr, ",") & ") VALUES "
+        ret(i) = ret(i) & Join(subV(v, a__o(i * max_record, min_fun(sizeof(v), (i + 1) * max_record))), ",") & ";"
+    Next i
+    Call swapVariant(bulk_insert_expr, ret)
 End Function
     
-    Private Function bulk_insert_expr_1(ByRef values As Variant) As String
-        Dim tmp As Variant:     tmp = values
+    Private Function bulk_insert_expr_1(ByRef record As Variant) As String
+        Call changeLBound(record, 0)
         Dim i As Long
-        For i = LBound(tmp) To UBound(tmp) Step 1
-            If IsNull(tmp(i)) Or IsEmpty(tmp(i)) Or IsObject(tmp(i)) Or IsArray(tmp(i)) Then
-                tmp(i) = "NULL"
-            ElseIf Not IsNumeric(tmp(i)) Or VarType(tmp(i)) = vbString Then
-                If 0 < Len(tmp(i)) Then
-                    tmp(i) = "'" & Replace(tmp(i), "'", "''") & "'"
+        For i = 0 To UBound(record) Step 1
+            If IsNull(record(i)) Or IsEmpty(record(i)) Or IsObject(record(i)) Or IsArray(record(i)) Then
+                record(i) = "NULL"
+            ElseIf Not IsNumeric(record(i)) Or VarType(record(i)) = vbString Then
+                If 0 < Len(record(i)) Then
+                    record(i) = "'" & Replace(record(i), "'", "''") & "'"
                 End If
             End If
+            If Len(record(i)) = 0 Then record(i) = "NULL"
         Next i
-        bulk_insert_expr_1 = "(" & Join(tmp, ",") & ")"
+        bulk_insert_expr_1 = "(" & Join(record, ",") & ")"
     End Function
 
 ' インストールされているODBCドライバ配列を返す
