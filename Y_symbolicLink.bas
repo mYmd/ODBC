@@ -69,6 +69,7 @@ Public Function GetLogicalDrives() As String
 End Function
 
 ' ファイル一覧
+' フォルダが存在しないときはEmpty, フォルダが空の時はArray()
 Function getFileFolderList(ByVal folderName As String, _
                   Optional ByVal files_only As Boolean = True) As Variant
     Dim fso As Object
@@ -86,6 +87,7 @@ Function getFileFolderList(ByVal folderName As String, _
         Set filesCollection = fDer.SubFolders
     End If
     ret = Array()
+    getFileFolderList = ret
     If 0 < filesCollection.Count Then
         ReDim ret(0 To filesCollection.Count - 1, 0 To 1)
         i = LBound(ret)
