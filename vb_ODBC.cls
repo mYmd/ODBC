@@ -33,6 +33,7 @@ Option Explicit
 '   Function        select_columnWise   Select文を発行して列の配列としてメンバに格納する
 '   Function        select_map          Select文を発行して行ごとにコールバックを呼ぶ
 '   Function        exec                insert文やdelete文を実行する
+'   Function        textOut             テキストファイル出力
 '   Function        rowSize             テーブルのレコード数
 '   Function        colSize             テーブルのカラム数
 '   Function        get_data            Select したテーブルデータのコピーを返す
@@ -99,6 +100,14 @@ Private Declare PtrSafe Function setQueryTimeout Lib "vbODBC.dll" ( _
                                 
 Private Declare PtrSafe Function getStatementError Lib "vbODBC.dll" ( _
                                     ByVal N As Long) As Variant
+
+Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
+                                    ByVal N As Long, _
+                                ByRef SQL_expr As Variant, _
+                            ByRef fileName As Variant, _
+                        ByRef delimiter As Variant, _
+                    ByVal quote As Long, _
+                ByVal flushN As Long) As Long
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal buf As String, _
@@ -284,6 +293,18 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     End If
     laptime_ = GetTickCount() - laptime_
     Set exec = Me
+End Function
+
+'テキストファイル出力
+Public Function textOut(ByVal sqlExpr As String, _
+                        ByVal fileName As String, _
+                        Optional ByVal delimiter As String = ",", _
+                        Optional ByVal quote As Boolean = False, _
+                        Optional ByVal flushN As Long = 1024) As Long
+    mySQL_ = sqlExpr
+    laptime_ = GetTickCount()
+    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, IIf(quote, 1, 0), flushN)
+    laptime_ = GetTickCount() - laptime_
 End Function
 
 ' テーブルのレコード数

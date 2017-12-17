@@ -18,3 +18,4 @@ EXPORTS
 	columnAttributes_all = columnAttributes_all
 	setQueryTimeout = setQueryTimeout
 	getStatementError = getStatementError
+	textOutODBC = textOutODBC

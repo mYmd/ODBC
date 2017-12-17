@@ -4,6 +4,7 @@
 #include "odbcResource.hpp"
 #include <memory>
 #include <OleAuto.h>
+#include <fstream>
 
 using namespace mymd;
 
@@ -177,8 +178,8 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT const& SQL, VARIANT& 
                                         init_func,
                                         elem_func,
                                         add_func);
-                                        ::VariantClear(&header);
-                                        std::swap(header, header_func.getHeader());
+        ::VariantClear(&header);
+        std::swap(header, header_func.getHeader());
         return vec2VArray(std::move(vec));
     }
     catch (const std::exception&)
@@ -475,6 +476,61 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
     catch (const std::exception&)
     {
         return iVariant();
+    }
+}
+
+// テキストファイル出力
+__int32 __stdcall
+textOutODBC(__int32         myNo    , 
+            VARIANT const&  SQL_expr, 
+            VARIANT const&  fileName,
+            VARIANT const&  delimiter,
+            __int32         quote   ,
+            __int32         flushN  ) noexcept
+{
+    __int32 ret{0};
+    auto sql = getBSTR(SQL_expr);
+    auto delim_ = getBSTR(delimiter);
+    auto filename = getBSTR(fileName);
+    if (!sql || !filename || !delim_ || myNo < 0 || vODBCStmt_size() <= myNo)   return 0;
+    try
+    {
+        const tstring delim{delim_};
+        const tstring file_name{filename};
+        tstring elem;
+        SQLSMALLINT col_N{ 0 };
+        auto init_func = [&](SQLSMALLINT c) {
+            col_N = c;
+        };
+        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+            if ( quote )    elem += _T("\"");
+            elem += (str ? str: _T(""));
+            if ( quote )    elem += _T("\"");
+            if ( j < col_N - 1 )    elem += delim;
+        };
+        _wsetlocale(LC_ALL, L"Japanese");
+        std::wofstream of;
+        of.imbue(std::locale("Japanese", LC_ALL));
+        of.open(file_name, std::ios_base::out | std::ios_base::trunc);
+        auto add_func = [&](std::size_t x) {
+            if ( 0 < x )    of << std::endl;
+            of << elem;
+            elem.clear();
+            if ( 0 < flushN && 0 == (x+1) % flushN )    of.flush();
+            ++ret;
+        };
+        auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
+                                      tstring{ sql },
+                                      no_header{},
+                                      init_func,
+                                      elem_func,
+                                      add_func);//,
+        of.flush();
+        return ret;
+    }
+    catch (const std::exception&)
+    {
+        return ret;
     }
 }
 
