@@ -139,10 +139,10 @@ public:
 // ÉJÉ^ÉçÉOä÷êî
 template <typename FC, typename Iter_t>
 std::vector<std::vector<tstring>>
-catalogValue(FC&&                       catalog_func    ,
-            odbc_raii_statement const&  st              ,
-            Iter_t                      columnNumber_begin  ,
-            Iter_t                      columnNumber_end    )
+catalogValue(FC&&                        catalog_func    ,
+             odbc_raii_statement const&  st              ,
+             Iter_t                      columnNumber_begin  ,
+             Iter_t                      columnNumber_end    )
 {
     std::vector<std::vector<tstring>> ret(columnNumber_end - columnNumber_begin);
     auto result = st.invoke(std::forward<FC>(catalog_func));
@@ -196,6 +196,18 @@ catalogValue(FC&&                       catalog_func    ,
         }
     }
     return ret;
+}
+
+template <typename FC, typename Arr>
+std::vector<std::vector<tstring>>
+catalogValue(FC&&                       catalog_func     ,
+             odbc_raii_statement const&  st              ,
+             Arr&&                       arr             )
+{
+    return catalogValue(std::forward<FC>(catalog_func)  ,
+                        st  ,
+                        std::begin(std::forward<Arr>(arr))  ,
+                        std::end(std::forward<Arr>(arr))    );
 }
 
 //******************************************************************

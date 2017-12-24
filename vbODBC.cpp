@@ -372,11 +372,8 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexce
         auto table_func = [=](HSTMT x) {
             return ::SQLTables(x, NULL, SQL_NTS, schema_name, schema_len, NULL, SQL_NTS, NULL, SQL_NTS);
         };
-        std::array<SQLUSMALLINT, 3> columns = { 2, 3, 4 };
-        auto scheme_name_type = catalogValue(table_func,
-                                            vODBCStmt[myNo]->stmt(),
-                                            columns.begin(),
-                                            columns.end());
+        SQLUSMALLINT columns[] = { 2, 3, 4 };
+        auto scheme_name_type = catalogValue(table_func, vODBCStmt[myNo]->stmt(), columns);
         auto trans = [](tstring& s) {   return makeVariantFromSQLType(SQL_CHAR, &s[0]); };
         std::vector<VARIANT> vec;
         vec.reserve(3);
@@ -446,8 +443,8 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
             auto column_func = [=](HSTMT x) {
                 return ::SQLColumns(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len, NULL, SQL_NTS);
             };
-            std::array<SQLUSMALLINT, 7> columns = { 4, 6, 11, 9, 5, 7, 17 };
-            auto column_attr = catalogValue(column_func, st, columns.begin(), columns.end());
+            SQLUSMALLINT columns[] = { 4, 6, 11, 9, 5, 7, 17 };
+            auto column_attr = catalogValue(column_func, st, columns);
             //------------------------
             auto column_name = vec2VArray(std::move(column_attr[0]), trans(SQL_CHAR));
             auto type_name = vec2VArray(std::move(column_attr[1]), trans(SQL_CHAR));
@@ -467,7 +464,7 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
                 return ::SQLPrimaryKeys(x, NULL, SQL_NTS, schema_name, schema_len, table_Name, table_len);
             };
             SQLUSMALLINT keycolumns[] = { 4 };
-            auto key_value = catalogValue(primarykeys_func, st, keycolumns, keycolumns + 1);    //KEY_NAME
+            auto key_value = catalogValue(primarykeys_func, st, keycolumns);    //KEY_NAME
             auto primarykeys = vec2VArray(std::move(key_value[0]), trans(SQL_CHAR));
             vec.push_back(primarykeys);         // 6
         }
@@ -478,6 +475,26 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
         return iVariant();
     }
 }
+
+namespace 
+{
+    class header_getter_t    {
+        std::vector<column_t::name_type>    v_colname;
+    public:
+        void operator()(std::vector<column_t::name_type>&   colname ,
+                        std::vector<SQLSMALLINT>&   ,
+                        std::vector<SQLULEN>&       ,
+                        std::vector<SQLSMALLINT>&   ,
+                        std::vector<SQLSMALLINT>&   ,
+                        std::vector<SQLSMALLINT>&   ) noexcept
+        {   v_colname = std::move(colname);     }
+        
+    };
+
+
+
+}
+
 
 // テキストファイル出力
 __int32 __stdcall
@@ -519,6 +536,7 @@ textOutODBC(__int32         myNo    ,
             if ( 0 < flushN && 0 == (x+1) % flushN )    of.flush();
             ++ret;
         };
+
         auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
                                       tstring{ sql },
                                       no_header{},
