@@ -5,6 +5,7 @@
 #include <memory>
 #include <OleAuto.h>
 #include <fstream>
+#include <codecvt>
 
 using namespace mymd;
 
@@ -495,14 +496,14 @@ namespace
 
 }
 
-
 // テキストファイル出力
 __int32 __stdcall
 textOutODBC(__int32         myNo    , 
             VARIANT const&  SQL_expr, 
             VARIANT const&  fileName,
+            __int8          utf8    ,
             VARIANT const&  delimiter,
-            __int32         quote   ,
+            __int8          quote   ,
             __int32         flushN  ) noexcept
 {
     __int32 ret{0};
@@ -525,15 +526,15 @@ textOutODBC(__int32         myNo    ,
             if ( quote )    elem += _T("\"");
             if ( j < col_N - 1 )    elem += delim;
         };
-        _wsetlocale(LC_ALL, L"Japanese");
-        std::wofstream of;
-        of.imbue(std::locale("Japanese", LC_ALL));
-        of.open(file_name, std::ios_base::out | std::ios_base::trunc);
+        std::wofstream ofs(file_name, std::ios_base::out | std::ios_base::trunc);
+        ofs.imbue(utf8 ?
+                  std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t>) :   //C++17で非推奨
+                  std::locale("", LC_CTYPE)    );
         auto add_func = [&](std::size_t x) {
-            if ( 0 < x )    of << std::endl;
-            of << elem;
+            if ( 0 < x )    ofs << std::endl;
+            ofs << elem;
             elem.clear();
-            if ( 0 < flushN && 0 == (x+1) % flushN )    of.flush();
+            if ( 0 < flushN && 0 == (x+1) % flushN )    ofs.flush();
             ++ret;
         };
 
@@ -543,7 +544,7 @@ textOutODBC(__int32         myNo    ,
                                       init_func,
                                       elem_func,
                                       add_func);//,
-        of.flush();
+        ofs.flush();
         return ret;
     }
     catch (const std::exception&)
