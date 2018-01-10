@@ -6,7 +6,6 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <odbcinst.h>
-#include <tchar.h>
 #include <string>
 #include <vector>
 #include <array>
@@ -19,9 +18,6 @@
 
 namespace mymd {
 
-using tstring = std::basic_string<TCHAR>;
-
-//**************************************************************
 class odbc_raii_env {
     HENV    henv;
     odbc_raii_env(const odbc_raii_env&) = delete;
@@ -67,7 +63,7 @@ class odbc_raii_statement {
 public:
     odbc_raii_statement() noexcept;
     ~odbc_raii_statement() noexcept;
-    tstring AllocHandle(const tstring& connectName, const odbc_raii_connect& con);
+    std::wstring AllocHandle(const std::wstring& connectName, const odbc_raii_connect& con);
     template <typename T>
     RETCODE invoke(T&& expr) const noexcept
     {
@@ -90,25 +86,24 @@ class odbc_set {
     odbc_raii_env       env;
     odbc_raii_connect   con;
     odbc_raii_statement st;
-    tstring             errorMessage_;
+    std::wstring        errorMessage_;
 public:
-    explicit odbc_set(const tstring& connectName,
+    explicit odbc_set(const std::wstring& connectName,
                       decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type = SQL_CURSOR_FORWARD_ONLY) noexcept;
     odbc_raii_statement& stmt() noexcept;
     void set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept;
     bool isError() const noexcept;
-    void setErrorMessage(tstring&&) noexcept;
-    tstring errorMessage() const;
+    void setErrorMessage(std::wstring&&) noexcept;
+    std::wstring errorMessage() const;
 };
 
 //**************************************************************
-tstring getTypeStr(SQLSMALLINT) noexcept;
+std::wstring getTypeStr(SQLSMALLINT) noexcept;
 //********************************************************
 
 struct column_t {
     static std::size_t const nameSize = 256;
-    using name_type = std::array<TCHAR, nameSize>;
-    using buffer_type = std::basic_string<UCHAR>;
+    using name_type = std::array<wchar_t, nameSize>;
     static std::size_t const bufferSize = 16384;
 };
 //********************************************************
@@ -122,11 +117,11 @@ class SQLDiagRec {
 public:
     SQLDiagRec() noexcept : recNum{ 1 }
     {
-        SQLState[0] = _T('\0'); szErrorMsg[0] = _T('\0');
+        SQLState[0] = L'\0'; szErrorMsg[0] = L'\0';
     }
     void setnum(SQLSMALLINT a) noexcept { recNum = a; }
-    tstring getMessage() const          { return szErrorMsg; }
-    tstring getState() const            { return SQLState; }
+    std::wstring getMessage() const          { return szErrorMsg; }
+    std::wstring getState() const            { return SQLState; }
     RETCODE operator ()(HSTMT x) noexcept
     {
         SQLSMALLINT o_o;
@@ -138,13 +133,13 @@ public:
 
 // ÉJÉ^ÉçÉOä÷êî
 template <typename FC, typename Iter_t>
-std::vector<std::vector<tstring>>
+std::vector<std::vector<std::wstring>>
 catalogValue(FC&&                        catalog_func    ,
              odbc_raii_statement const&  st              ,
              Iter_t                      columnNumber_begin  ,
              Iter_t                      columnNumber_end    )
 {
-    std::vector<std::vector<tstring>> ret(columnNumber_end - columnNumber_begin);
+    std::vector<std::vector<std::wstring>> ret(columnNumber_end - columnNumber_begin);
     auto result = st.invoke(std::forward<FC>(catalog_func));
     if (SQL_SUCCESS != result)      return ret;
     SQLSMALLINT nresultcols{ 0 };
@@ -155,7 +150,7 @@ catalogValue(FC&&                        catalog_func    ,
         );
     }
     const std::size_t ColumnNameLen = 1024;
-    std::vector<std::array<SQLCHAR, ColumnNameLen>> buffer_v(nresultcols);
+    std::vector<std::array<wchar_t, ColumnNameLen>> buffer_v(nresultcols);
     SQLLEN   pcbValue{ 0 };
     auto p_pcbValue = &pcbValue;
     cursor_colser   c_closer{st, true};
@@ -166,7 +161,7 @@ catalogValue(FC&&                        catalog_func    ,
         auto result = st.invoke(
             [=](HSTMT x) { return ::SQLBindCol(x,
                                             j+1,
-                                        SQL_C_CHAR,
+                                        SQL_C_WCHAR,
                                     p_rgbValue,
                                 ColumnNameLen,
                             p_pcbValue);
@@ -175,7 +170,6 @@ catalogValue(FC&&                        catalog_func    ,
         if (SQL_SUCCESS != result)      return ret;
     }
     auto SQLFetch_expr = [=](HSTMT x) { return ::SQLFetch(x); };
-    TCHAR tcharBuffer[ColumnNameLen];
     while (true)
     {
         auto fetch_result = st.invoke(SQLFetch_expr);
@@ -185,21 +179,14 @@ catalogValue(FC&&                        catalog_func    ,
         {
             auto num = (*p) - 1;
             if (num < 0 || nresultcols <= num)    continue;
-            tcharBuffer[0] = _T('\0');
-            auto mb = ::MultiByteToWideChar(CP_ACP,
-                                        MB_PRECOMPOSED,
-                                    reinterpret_cast<LPCSTR>(&buffer_v[num][0]),
-                                -1,
-                            tcharBuffer,
-                        ColumnNameLen);
-            ret[p-columnNumber_begin].push_back(tstring(tcharBuffer));
+            ret[p-columnNumber_begin].push_back(buffer_v[num].data());
         }
     }
     return ret;
 }
 
 template <typename FC, typename Arr>
-std::vector<std::vector<tstring>>
+std::vector<std::vector<std::wstring>>
 catalogValue(FC&&                       catalog_func     ,
              odbc_raii_statement const&  st              ,
              Arr&&                       arr             )
@@ -213,13 +200,13 @@ catalogValue(FC&&                       catalog_func     ,
 //******************************************************************
 
 //  SELECT  ,  INSERT  ,  UPDATE  ,  ...
-RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) noexcept;
+RETCODE execDirect(const std::wstring& sql_expr, const odbc_raii_statement& stmt) noexcept;
 
 //******************************************************************
 template <typename F>
 SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
-                            tstring const&                      sql_expr,
-                            std::vector<column_t::buffer_type>* pBuffer,
+                            std::wstring const&                      sql_expr,
+                            std::vector<std::wstring>*          pBuffer,
                             std::vector<SQLLEN>*                pdatastrlen,
                             F&&                                 write_func,
                             bool                                close_      ) noexcept
@@ -257,7 +244,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
             return ::SQLDescribeCol(x,
                                 static_cast<UWORD>(j+1),
                             colname[j].data(),
-                        static_cast<SQLSMALLINT>(column_t::nameSize * sizeof(TCHAR)),
+                        static_cast<SQLSMALLINT>(column_t::nameSize * sizeof(wchar_t)),
                         &colnamelen[j],
                         &coltype[j],
                             &collen[j],
@@ -266,11 +253,11 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
         };
         auto SQLBindColExpr = [&](HSTMT x) {
             return ::SQLBindCol(x,
-                        static_cast<UWORD>(j+1),
-                        SQL_C_CHAR,
-                        &(*pBuffer)[j][0],
-                        (*pBuffer)[j].size() * sizeof(UCHAR),
-                        &(*pdatastrlen)[j]);
+                                static_cast<UWORD>(j+1),
+                                SQL_C_WCHAR,
+                                &(*pBuffer)[j][0],
+                                (*pBuffer)[j].size() * sizeof(wchar_t),
+                                &(*pdatastrlen)[j]);
         };
         auto const StrSizeofColumn = column_t::bufferSize;
         cursor_colser   c_closer{ stmt, close_ };
@@ -313,7 +300,7 @@ struct bool_sentinel {
 
 template <typename FH, typename FI, typename FE, typename FA, typename FtCur>
 std::size_t select_table(odbc_raii_statement const& stmt        ,
-                        tstring const&              sql_expr    ,
+                        std::wstring const&         sql_expr    ,
                         FH&&                        header_func ,
                         FI&&                        init_func   ,
                         FE&&                        elem_func   ,
@@ -333,7 +320,7 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
             coltype = coltype_;
             std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_);
         };
-        std::vector<column_t::buffer_type>  buffer;
+        std::vector<std::wstring>           buffer;
         std::vector<SQLLEN>                 datastrlen;
         auto nresultcols = columnAttribute( stmt        ,
                                             sql_expr    ,
@@ -347,7 +334,6 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
         bool_sentinel   bp;
         if (!(std::forward<FI>(init_func)(nresultcols), bp))    return 0;
         auto const StrSizeofColumn = column_t::bufferSize;
-        TCHAR tcharBuffer[StrSizeofColumn];
         std::size_t counter{ 0 };
         while (true)
         {
@@ -358,14 +344,8 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
             {
                 for (SQLSMALLINT j = 0; j < nresultcols; ++j)
                 {
-                    int mb = ::MultiByteToWideChar(CP_ACP,
-                                            MB_PRECOMPOSED,
-                                            reinterpret_cast<LPCSTR>(&buffer[j][0]),
-                                            -1,
-                                            tcharBuffer,
-                                            StrSizeofColumn);
                     std::forward<FE>(elem_func)(j,
-                                    (SQL_NULL_DATA == datastrlen[j]) ? nullptr : tcharBuffer,
+                                    (SQL_NULL_DATA == datastrlen[j]) ? nullptr : buffer[j].data(),
                                 coltype[j]);
                 }
                 if (!(std::forward<FA>(add_func)(counter++), bp))
@@ -386,7 +366,7 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
 
 template <typename FH, typename FI, typename FE, typename FA>
 std::size_t select_table(odbc_raii_statement const& stmt        ,
-                        tstring const&              sql_expr    ,
+                         std::wstring const&        sql_expr    ,
                         FH&&                        header_func ,
                         FI&&                        init_func   ,
                         FE&&                        elem_func   ,

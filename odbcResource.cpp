@@ -67,8 +67,8 @@ odbc_raii_statement::~odbc_raii_statement() noexcept
         ::SQLFreeStmt(hstmt, SQL_DROP);
 }
 
-tstring
-odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_connect& con)
+std::wstring
+odbc_raii_statement::AllocHandle(std::wstring const& connectName, odbc_raii_connect const& con)
 {
     if (hstmt)  ::SQLFreeStmt(hstmt, SQL_DROP);
     TCHAR ucOutConnectStr[1024];
@@ -94,7 +94,7 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
         con.invoke(diagRec);
         return diagRec.getMessage();
     }
-    ucOutConnectStr[ConOut] = _T('\0');
+    ucOutConnectStr[ConOut] = L'\0';
     auto const r2 = con.invoke(
         [=](HDBC x) { return ::SQLAllocHandle(SQL_HANDLE_STMT, x, &hstmt); }
     );
@@ -104,7 +104,7 @@ odbc_raii_statement::AllocHandle(const tstring& connectName, const odbc_raii_con
         con.invoke(diagRec);
         return diagRec.getMessage();
     }
-    return tstring(_T(""));
+    return std::wstring(L"");
 }
 
 //********************************************************
@@ -121,7 +121,7 @@ cursor_colser::~cursor_colser() noexcept
 
 //********************************************************
 
-odbc_set::odbc_set(const tstring& connectName, decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type) noexcept
+odbc_set::odbc_set(const std::wstring& connectName, decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type) noexcept
 {
     if ( env.AllocHandle() && con.AllocHandle(env) )
         errorMessage_ = st.AllocHandle(connectName, con);
@@ -158,19 +158,19 @@ bool odbc_set::isError() const noexcept
     return 0 < errorMessage_.size();
 }
 
-void odbc_set::setErrorMessage(tstring && t) noexcept
+void odbc_set::setErrorMessage(std::wstring && t) noexcept
 {
     errorMessage_ = std::move(t);
 }
 
-tstring odbc_set::errorMessage() const
+std::wstring odbc_set::errorMessage() const
 {
     return errorMessage_;
 }
 
 //********************************************************
 
-RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) noexcept
+RETCODE execDirect(const std::wstring& sql_expr, const odbc_raii_statement& stmt) noexcept
 {
     auto sql = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(sql_expr.c_str()));
     return stmt.invoke(
@@ -179,34 +179,34 @@ RETCODE execDirect(const tstring& sql_expr, const odbc_raii_statement& stmt) noe
 }
 //********************************************************
 
-tstring getTypeStr(SQLSMALLINT type) noexcept
+std::wstring getTypeStr(SQLSMALLINT type) noexcept
 {
-    tstring ret;
+    std::wstring ret;
     switch (type)
     {
-    case SQL_CHAR:              ret = tstring(_T("CHAR"));          break;
-    case SQL_NUMERIC:           ret = tstring(_T("NUMERIC"));       break;
-    case SQL_DECIMAL:           ret = tstring(_T("DECIMAL"));       break;
-    case SQL_INTEGER:           ret = tstring(_T("INTEGER"));       break;
-    case SQL_SMALLINT:          ret = tstring(_T("SMALLINT"));      break;
-    case SQL_FLOAT:             ret = tstring(_T("FLOAT"));         break;
-    case SQL_REAL:              ret = tstring(_T("REAL"));          break;
-    case SQL_DOUBLE:            ret = tstring(_T("DOUBLE"));        break;
-    case SQL_VARCHAR:           ret = tstring(_T("VARCHAR"));       break;
-    case SQL_TYPE_DATE:         ret = tstring(_T("TYPE_DATE"));     break;
-    case SQL_TYPE_TIME:         ret = tstring(_T("TYPE_TIME"));     break;
-    case SQL_TYPE_TIMESTAMP:    ret = tstring(_T("TYPE_TIMESTAMP")); break;
-    case SQL_WLONGVARCHAR:      ret = tstring(_T("WLONGVARCHAR"));  break;
-    case SQL_WVARCHAR:          ret = tstring(_T("WVARCHAR"));      break;
-    case SQL_WCHAR:             ret = tstring(_T("WCHAR"));         break;
-    case SQL_BIT:               ret = tstring(_T("BIT"));           break;
-    case SQL_TINYINT:           ret = tstring(_T("TINYINT"));       break;
-    case SQL_BIGINT:            ret = tstring(_T("BIGINT"));        break;
-    case SQL_LONGVARBINARY:     ret = tstring(_T("LONGVARBINARY")); break;
-    case SQL_VARBINARY:         ret = tstring(_T("VARBINARY"));     break;
-    case SQL_BINARY:            ret = tstring(_T("BINARY"));        break;
-    case SQL_LONGVARCHAR:       ret = tstring(_T("LONGVARCHAR"));   break;
-    default:                    ret = tstring(_T("?"));
+    case SQL_CHAR:              ret = std::wstring(L"CHAR");            break;
+    case SQL_NUMERIC:           ret = std::wstring(L"NUMERIC");         break;
+    case SQL_DECIMAL:           ret = std::wstring(L"DECIMAL");         break;
+    case SQL_INTEGER:           ret = std::wstring(L"INTEGER");         break;
+    case SQL_SMALLINT:          ret = std::wstring(L"SMALLINT");        break;
+    case SQL_FLOAT:             ret = std::wstring(L"FLOAT");           break;
+    case SQL_REAL:              ret = std::wstring(L"REAL");            break;
+    case SQL_DOUBLE:            ret = std::wstring(L"DOUBLE");          break;
+    case SQL_VARCHAR:           ret = std::wstring(L"VARCHAR");         break;
+    case SQL_TYPE_DATE:         ret = std::wstring(L"TYPE_DATE");       break;
+    case SQL_TYPE_TIME:         ret = std::wstring(L"TYPE_TIME");       break;
+    case SQL_TYPE_TIMESTAMP:    ret = std::wstring(L"TYPE_TIMESTAMP");  break;
+    case SQL_WLONGVARCHAR:      ret = std::wstring(L"WLONGVARCHAR");    break;
+    case SQL_WVARCHAR:          ret = std::wstring(L"WVARCHAR");        break;
+    case SQL_WCHAR:             ret = std::wstring(L"WCHAR");           break;
+    case SQL_BIT:               ret = std::wstring(L"BIT");             break;
+    case SQL_TINYINT:           ret = std::wstring(L"TINYINT");         break;
+    case SQL_BIGINT:            ret = std::wstring(L"BIGINT");          break;
+    case SQL_LONGVARBINARY:     ret = std::wstring(L"LONGVARBINARY");   break;
+    case SQL_VARBINARY:         ret = std::wstring(L"VARBINARY");       break;
+    case SQL_BINARY:            ret = std::wstring(L"BINARY");          break;
+    case SQL_LONGVARCHAR:       ret = std::wstring(L"LONGVARCHAR");     break;
+    default:                    ret = std::wstring(L"?");
     }
     return ret;
 }

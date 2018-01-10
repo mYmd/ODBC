@@ -18,6 +18,8 @@ namespace {
         return static_cast<__int32>(vODBCStmt.size());
     }
 
+    bool isCHARType(SQLSMALLINT) noexcept;
+
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR) noexcept;
 
     BSTR getBSTR(VARIANT const&) noexcept;
@@ -89,7 +91,7 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT& rawStr) noexcept
     if (!bstr)                     return -1;
     try
     {
-        tstring connectName{ bstr };
+        std::wstring connectName{ bstr };
         auto p = std::make_unique<odbc_set>(connectName);
         if ( p->isError() )
         {
@@ -110,7 +112,7 @@ __int32 __stdcall initODBC(__int32& myNo, VARIANT& rawStr) noexcept
     catch (const std::exception&)
     {
         ::VariantClear(&rawStr);
-        rawStr = makeVariantFromSQLType(SQL_CHAR, _T("UnKnown Error"));
+        rawStr = makeVariantFromSQLType(SQL_CHAR, L"UnKnown Error");
         return -1;
     }
     return myNo;
@@ -165,7 +167,7 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT const& SQL, VARIANT& 
         auto init_func = [&](SQLSMALLINT c) {
             elem.resize(col_N = c);
         };
-        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        auto elem_func = [&](SQLSMALLINT j, wchar_t const* str, SQLSMALLINT coltype) {
             elem[j] = makeVariantFromSQLType(coltype, str);
         };
         auto add_func = [&](std::size_t) {
@@ -174,7 +176,7 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT const& SQL, VARIANT& 
         };
         header_getter   header_func;
         auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
-                                        tstring{ bstr },
+                                        std::wstring{ bstr },
                                         header_func,
                                         init_func,
                                         elem_func,
@@ -262,7 +264,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& head
         auto init_func = [&](SQLSMALLINT c) {
             elem.resize(col_N = c);
         };
-        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        auto elem_func = [&](SQLSMALLINT j, wchar_t const* str, SQLSMALLINT coltype) {
             elem[j] = makeVariantFromSQLType(coltype, str);
         };
         auto add_func = [&](std::size_t n) {
@@ -275,7 +277,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& head
         };
         header_getter   header_func;
         auto recordLen = select_table(  vODBCStmt[myNo]->stmt(),
-                                      tstring{ bstr },
+                                      std::wstring{ bstr },
                                       header_func,
                                       init_func,
                                       elem_func,
@@ -297,7 +299,7 @@ VARIANT __stdcall columnAttributes(__int32 myNo, VARIANT const& SQL) noexcept
     //------------------------
     header_getter   header_func;
     auto len = columnAttribute( vODBCStmt[myNo]->stmt(),
-                                    tstring(bstr),
+                                    std::wstring(bstr),
                                         nullptr,
                                             nullptr,
                                                 header_func,
@@ -332,7 +334,7 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT const& SQLs) noexcept
             ::SafeArrayGetElement(pArray, &index, &elem);
             if (elem.vt == VT_BSTR && elem.bstrVal)
             {
-                auto const rc = execDirect(tstring(elem.bstrVal), vODBCStmt[myNo]->stmt());
+                auto const rc = execDirect(std::wstring(elem.bstrVal), vODBCStmt[myNo]->stmt());
                 if (rc != SQL_SUCCESS && rc != SQL_SUCCESS_WITH_INFO)
                 {
                     errorNo.push_back(index);
@@ -366,7 +368,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexce
         return iVariant();
     try
     {
-        tstring schema_name_t{ schema_name_b };
+        std::wstring schema_name_t{ schema_name_b };
         auto schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
         auto schema_len = static_cast<SQLSMALLINT>(schema_name_t.length());
         if (schema_len == 0)      schema_name = NULL;
@@ -375,7 +377,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexce
         };
         SQLUSMALLINT columns[] = { 2, 3, 4 };
         auto scheme_name_type = catalogValue(table_func, vODBCStmt[myNo]->stmt(), columns);
-        auto trans = [](tstring& s) {   return makeVariantFromSQLType(SQL_CHAR, &s[0]); };
+        auto trans = [](std::wstring& s) { return makeVariantFromSQLType(SQL_CHAR, &s[0]); };
         std::vector<VARIANT> vec;
         vec.reserve(3);
         vec.push_back(vec2VArray(std::move(scheme_name_type[0]), trans));
@@ -420,7 +422,7 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
         return iVariant();
     try
     {
-        tstring schema_name_t{ schema_name_b }, table_name_t{ table_Name_b };
+        std::wstring schema_name_t{ schema_name_b }, table_name_t{ table_Name_b };
         auto schema_name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(schema_name_t.c_str()));
         auto table_Name = const_cast<SQLTCHAR*>(static_cast<const SQLTCHAR*>(table_name_t.c_str()));
         auto schema_len = static_cast<SQLSMALLINT>(schema_name_t.length());
@@ -430,13 +432,13 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
         struct trans {  // Workaround for VC++2013
             SQLSMALLINT x;
             trans(SQLSMALLINT i) : x(i) {   }
-            VARIANT operator ()(tstring& s) const
+            VARIANT operator ()(std::wstring& s) const
             {
                 return makeVariantFromSQLType(x, &s[0]);
             };
         };
         //auto trans = [](SQLSMALLINT x) {
-        //    return [=](tstring& s)  {   return makeVariantFromSQLType(x, &s[0]);    };
+        //    return [=](std::wstring& s)  {   return makeVariantFromSQLType(x, &s[0]);    };
         //};
         std::vector<VARIANT> vec;
         vec.reserve(7);
@@ -513,17 +515,27 @@ textOutODBC(__int32         myNo    ,
     if (!sql || !filename || !delim_ || myNo < 0 || vODBCStmt_size() <= myNo)   return 0;
     try
     {
-        const tstring delim{delim_};
-        const tstring file_name{filename};
-        tstring elem;
+        const std::wstring delim{delim_};
+        const std::wstring file_name{filename};
+        std::wstring elem;
         SQLSMALLINT col_N{ 0 };
         auto init_func = [&](SQLSMALLINT c) {
             col_N = c;
         };
-        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
-            if ( quote )    elem += _T("\"");
-            elem += (str ? str: _T(""));
-            if ( quote )    elem += _T("\"");
+        auto elem_func = [&](SQLSMALLINT j, wchar_t const* str, SQLSMALLINT coltype) {
+            if ( quote )    elem += L"\"";
+            if (str)
+            {
+                if ( isCHARType(coltype) )      elem += str;
+                else
+                {
+                    auto svar = makeVariantFromSQLType(coltype, str);
+                    if ( S_OK == ::VariantChangeType(&svar, &svar, 0, VT_BSTR) )
+                        elem += getBSTR(svar);
+                    ::VariantClear(&svar);
+                }
+            }
+            if ( quote )            elem += L"\"";
             if ( j < col_N - 1 )    elem += delim;
         };
         std::wofstream ofs(file_name, std::ios_base::out | std::ios_base::trunc);
@@ -537,9 +549,8 @@ textOutODBC(__int32         myNo    ,
             if ( 0 < flushN && 0 == (x+1) % flushN )    ofs.flush();
             ++ret;
         };
-
         auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
-                                      tstring{ sql },
+                                      std::wstring{ sql },
                                       no_header{},
                                       init_func,
                                       elem_func,
@@ -554,6 +565,21 @@ textOutODBC(__int32         myNo    ,
 }
 
 namespace {
+
+    bool isCHARType(SQLSMALLINT type) noexcept
+    {
+        switch (type)
+        {
+        case SQL_CHAR:      case SQL_VARCHAR:       case SQL_LONGVARCHAR:
+        case SQL_WCHAR:     case SQL_WVARCHAR:      case SQL_WLONGVARCHAR:
+        case SQL_BINARY:    case SQL_VARBINARY:     case SQL_LONGVARBINARY:
+        {
+            return true;
+        }
+        default:
+            return false;
+        }
+    }
 
     VARIANT makeVariantFromSQLType(SQLSMALLINT type, LPCOLESTR expr) noexcept
     {
@@ -594,11 +620,11 @@ namespace {
         }
         case SQL_TYPE_DATE: case SQL_TYPE_TIME: case SQL_TYPE_TIMESTAMP:
         {
-            OLECHAR date_expr[] = _T("2001-01-01 00:00:00");
+            OLECHAR date_expr[] = L"2001-01-01 00:00:00";
             auto p = expr;
             auto q = date_expr;
-            while (*p != _T('\0') && *p != _T('.') && *q != _T('\0'))       *q++ = *p++;
-            *q = _T('\0');
+            while (*p != L'\0' && *p != L'.' && *q != L'\0')       *q++ = *p++;
+            *q = L'\0';
             DATE dOut;
             auto const vdr = ::VarDateFromStr(date_expr, LANG_JAPANESE, LOCALE_NOUSEROVERRIDE, &dOut);
             auto ret = iVariant(VT_DATE);
@@ -668,13 +694,13 @@ namespace {
         auto init_func = [&](SQLSMALLINT c) {
             vec.resize(c);
         };
-        auto elem_func = [&](SQLSMALLINT j, TCHAR const* str, SQLSMALLINT coltype) {
+        auto elem_func = [&](SQLSMALLINT j, wchar_t const* str, SQLSMALLINT coltype) {
             vec[j].push_back(makeVariantFromSQLType(coltype, str));
         };
         auto add_func = [&](std::size_t) {};
         header_getter header_func;
         auto recordLen = select_table(  st,
-                                    tstring{ sql },
+                                    std::wstring{ sql },
                                 header_func,
                             init_func,
                         elem_func,
