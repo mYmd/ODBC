@@ -18,7 +18,7 @@ namespace {
         return static_cast<__int32>(vODBCStmt.size());
     }
 
-    bool isCHARType(SQLSMALLINT) noexcept;
+    bool isNumericType(SQLSMALLINT type) noexcept;
 
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR) noexcept;
 
@@ -67,6 +67,35 @@ namespace {
     std::vector<std::vector<VARIANT>>
         selectODBC_columnWise_imple(odbc_raii_statement&, BSTR, VARIANT&);
 
+    class textFileOut_t {
+    public:
+        virtual ~textFileOut_t();
+        virtual void put(wchar_t x) const noexcept = 0;
+        virtual void put(std::wstring const& x) const noexcept = 0;
+        virtual void flush() const noexcept = 0;
+    };
+
+    class fputws_t : public textFileOut_t   {
+        struct file_closer {
+            void operator ()(FILE* pF) const  noexcept { if (pF) ::fclose(pF); }
+        };
+        using fileCloseRAII = std::unique_ptr<FILE, file_closer>;
+        fileCloseRAII   fc_RAII;
+    public:
+        fputws_t(BSTR fileName, UINT codepage) noexcept;
+        void put(wchar_t x) const noexcept;
+        void put(std::wstring const& x) const noexcept;
+        void flush() const noexcept;
+    };
+
+    class ofstream_t : public textFileOut_t     {
+        mutable std::wofstream ofs;
+    public:
+        ofstream_t(BSTR fileName, UINT codepage) noexcept;
+        void put(wchar_t x) const noexcept;
+        void put(std::wstring const& x) const noexcept;
+        void flush() const noexcept;
+    };
 }
 
 //----------------------------------------------------------------------
@@ -498,21 +527,28 @@ namespace
 
 }
 
+#undef max
+
 // テキストファイル出力
 __int32 __stdcall
-textOutODBC(__int32         myNo    , 
-            VARIANT const&  SQL_expr, 
-            VARIANT const&  fileName,
-            __int8          utf8    ,
-            VARIANT const&  delimiter,
-            __int8          quote   ,
-            __int32         flushN  ) noexcept
+textOutODBC(__int32         myNo        , 
+            VARIANT const&  SQL_expr    , 
+            VARIANT const&  fileName    ,
+            VARIANT const&  delimiter   ,
+            __int8          quote       ,
+            __int32         codepage_   ,
+            __int32         topN        ,
+            __int32         flushMB     ) noexcept
 {
-    __int32 ret{0};
     auto sql = getBSTR(SQL_expr);
     auto delim_ = getBSTR(delimiter);
     auto filename = getBSTR(fileName);
+    auto codepage = static_cast<UINT>(codepage_);
+    if ( topN < 0 )     topN = std::numeric_limits<int>::max();
+    std::size_t flushByte = (flushMB <= 0)? std::numeric_limits<unsigned long>::max():
+                                            1000000 * flushMB;
     if (!sql || !filename || !delim_ || myNo < 0 || vODBCStmt_size() <= myNo)   return 0;
+    __int32 ret{0};
     try
     {
         const std::wstring delim{delim_};
@@ -523,31 +559,30 @@ textOutODBC(__int32         myNo    ,
             col_N = c;
         };
         auto elem_func = [&](SQLSMALLINT j, wchar_t const* str, SQLSMALLINT coltype) {
-            if ( quote )    elem += L"\"";
-            if (str)
-            {
-                if ( isCHARType(coltype) )      elem += str;
-                else
-                {
-                    auto svar = makeVariantFromSQLType(coltype, str);
-                    if ( S_OK == ::VariantChangeType(&svar, &svar, 0, VT_BSTR) )
-                        elem += getBSTR(svar);
-                    ::VariantClear(&svar);
-                }
-            }
+            if ( quote )            elem += L"\"";
+            if (str)                elem += str;
             if ( quote )            elem += L"\"";
             if ( j < col_N - 1 )    elem += delim;
         };
-        std::wofstream ofs(file_name, std::ios_base::out | std::ios_base::trunc);
-        ofs.imbue(utf8 ?
-                  std::locale(std::locale::empty(), new std::codecvt_utf8<wchar_t>) :   //C++17で非推奨
-                  std::locale("", LC_CTYPE)    );
+        std::unique_ptr<textFileOut_t> txtOut_str(
+                ( codepage == 1252 || codepage == 1200 || codepage == 65001 )?
+                    static_cast<textFileOut_t*>(new fputws_t(filename, codepage)) :
+                    static_cast<textFileOut_t*>(new ofstream_t(filename, codepage))
+                );
+        std::size_t bytes{0};
         auto add_func = [&](std::size_t x) {
-            if ( 0 < x )    ofs << std::endl;
-            ofs << elem;
+            if ( topN <= x )        return false;
+            txtOut_str->put(elem);
+            bytes += elem.size() * sizeof(wchar_t);
+            if ( flushByte < bytes )
+            {
+                txtOut_str->flush();
+                bytes = 0;
+            }
             elem.clear();
-            if ( 0 < flushN && 0 == (x+1) % flushN )    ofs.flush();
             ++ret;
+            txtOut_str->put(L'\n');
+            return true;
         };
         auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
                                       std::wstring{ sql },
@@ -555,7 +590,6 @@ textOutODBC(__int32         myNo    ,
                                       init_func,
                                       elem_func,
                                       add_func);//,
-        ofs.flush();
         return ret;
     }
     catch (const std::exception&)
@@ -566,13 +600,11 @@ textOutODBC(__int32         myNo    ,
 
 namespace {
 
-    bool isCHARType(SQLSMALLINT type) noexcept
+    bool isNumericType(SQLSMALLINT type) noexcept
     {
         switch (type)
         {
-        case SQL_CHAR:      case SQL_VARCHAR:       case SQL_LONGVARCHAR:
-        case SQL_WCHAR:     case SQL_WVARCHAR:      case SQL_WLONGVARCHAR:
-        case SQL_BINARY:    case SQL_VARBINARY:     case SQL_LONGVARBINARY:
+        case SQL_NUMERIC:   case SQL_DECIMAL:   case SQL_FLOAT: case SQL_REAL:  case SQL_DOUBLE:
         {
             return true;
         }
@@ -736,4 +768,59 @@ namespace {
         }
     }
 
-}
+    //**********************************
+    textFileOut_t::~textFileOut_t() {}
+
+    fputws_t::fputws_t(BSTR fileName, UINT codepage) noexcept
+    {
+        FILE* fp = nullptr;
+        auto err = ::_wfopen_s(&fp,
+                               fileName, 
+                               (codepage==1200)?    L"wt, ccs=UTF-16LE":
+                               (codepage==65001)?   L"wt, ccs=UTF-8":
+                               L"rt");     //ANSI(1252)
+        fc_RAII = fileCloseRAII{err? nullptr: fp};
+    }
+
+    void fputws_t::put(wchar_t x) const noexcept
+    {
+        auto fp = fc_RAII.get();
+        if ( fp )       std::fputwc(x, fp);
+    }
+
+    void fputws_t::put(std::wstring const& x) const noexcept
+    {
+        auto fp = fc_RAII.get();
+        if ( fp )       std::fputws(x.data(), fp);
+    }
+
+    void fputws_t::flush() const noexcept
+    {
+        auto fp = fc_RAII.get();
+        if ( fp )       std::fflush(fp);
+    }
+
+    //----------------------------------------------------
+    ofstream_t::ofstream_t(BSTR fileName, UINT codepage) noexcept
+            : ofs(fileName, std::ios_base::out | std::ios_base::trunc)
+    {
+        ofs.imbue(std::locale("", LC_CTYPE));
+    }
+
+    void ofstream_t::put(wchar_t x) const noexcept
+    {
+        ofs << x;
+    }
+
+    void ofstream_t::put(std::wstring const& x) const noexcept
+    {
+        ofs << x;
+    }
+
+    void ofstream_t::flush() const noexcept
+    {
+        ofs << std::flush;
+    }
+
+}    //namespace {
+

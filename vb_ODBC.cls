@@ -102,13 +102,14 @@ Private Declare PtrSafe Function getStatementError Lib "vbODBC.dll" ( _
                                     ByVal N As Long) As Variant
 
 Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
-                                ByRef SQL_expr As Variant, _
-                            ByRef fileName As Variant, _
-                        ByVal utf8file As Boolean, _
-                    ByRef delimiter As Variant, _
-                ByVal quote As Boolean, _
-            ByVal flushN As Long) As Long
+                                            ByVal N As Long, _
+                                        ByRef SQL_expr As Variant, _
+                                    ByRef fileName As Variant, _
+                                ByRef delimiter As Variant, _
+                            ByVal quote As Boolean, _
+                        ByVal codepage_ As Long, _
+                    ByVal topN As Long, _
+                ByVal flushMB As Long) As Long
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal buf As String, _
@@ -296,16 +297,36 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     Set exec = Me
 End Function
 
+'---------------------------------------------------------------
+        ' 文字変換用コードページ
+        Private Function getCodePage_(ByVal cp As String) As Long
+            Select Case StrConv(cp, vbUpperCase + vbNarrow)
+            Case "UTF-16", "UTF16", "UTF-16-LE", "UTF16-LE":
+                                                getCodePage_ = 1200
+            Case "UTF-8", "UTF8":               getCodePage_ = 65001
+            Case "UTF-7", "UTF7":               getCodePage_ = 65000
+            Case "ANSI":                        getCodePage_ = 1252  'ANSI(1252)
+            Case "SJIS", "S-JIS", "SHIFT-JIS":  getCodePage_ = 932
+            Case "MAC":                         getCodePage_ = 2
+            Case "OEM":                         getCodePage_ = 1
+            Case "SYMBOL", "SYMBOL42":          getCodePage_ = 42
+            Case Else
+                If IsNumeric(cp) Then getCodePage_ = CLng(cp) Else getCodePage_ = 932
+            End Select
+        End Function
+'---------------------------------------------------------------
+
 'テキストファイル出力
 Public Function textOut(ByVal sqlExpr As String, _
                         ByVal fileName As String, _
-                        Optional ByVal utf8file As Boolean = True, _
+                        Optional ByVal codepage As String = "SHIFT-JIS", _
                         Optional ByVal delimiter As String = ",", _
                         Optional ByVal quote As Boolean = False, _
-                        Optional ByVal flushN As Long = 1024) As Long
+                        Optional ByVal topN As Long = -1, _
+                        Optional ByVal flushMB As Long = -1) As Long
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    textOut = textOutODBC(myNo_, sqlExpr, fileName, utf8file, delimiter, quote, flushN)
+    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, getCodePage_(codepage), topN, flushMB)
     laptime_ = GetTickCount() - laptime_
 End Function
 
@@ -477,3 +498,5 @@ Public Function sqlServer_expr(ByVal server As String, _
     End If
     '               SELECT * FROM sysobjects WHERE xtype = 'U'
 End Function
+
+
