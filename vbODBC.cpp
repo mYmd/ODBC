@@ -70,8 +70,8 @@ namespace {
     class textFileOut_t {
     public:
         virtual ~textFileOut_t();
-        virtual void put(wchar_t x) const noexcept = 0;
-        virtual void put(std::wstring const& x) const noexcept = 0;
+        virtual void lineFeed() const noexcept = 0;
+        virtual bool put(std::wstring const& x) const noexcept = 0;
         virtual void flush() const noexcept = 0;
     };
 
@@ -83,8 +83,8 @@ namespace {
         fileCloseRAII   fc_RAII;
     public:
         fputws_t(BSTR fileName, UINT codepage) noexcept;
-        void put(wchar_t x) const noexcept;
-        void put(std::wstring const& x) const noexcept;
+        void lineFeed() const noexcept;
+        bool put(std::wstring const& x) const noexcept;
         void flush() const noexcept;
     };
 
@@ -92,8 +92,8 @@ namespace {
         mutable std::wofstream ofs;
     public:
         ofstream_t(BSTR fileName, UINT codepage) noexcept;
-        void put(wchar_t x) const noexcept;
-        void put(std::wstring const& x) const noexcept;
+        void lineFeed() const noexcept;
+        bool put(std::wstring const& x) const noexcept;
         void flush() const noexcept;
     };
 }
@@ -527,8 +527,6 @@ namespace
 
 }
 
-#undef max
-
 // テキストファイル出力
 __int32 __stdcall
 textOutODBC(__int32         myNo        , 
@@ -544,8 +542,8 @@ textOutODBC(__int32         myNo        ,
     auto delim_ = getBSTR(delimiter);
     auto filename = getBSTR(fileName);
     auto codepage = static_cast<UINT>(codepage_);
-    if ( topN < 0 )     topN = std::numeric_limits<int>::max();
-    std::size_t flushByte = (flushMB <= 0)? std::numeric_limits<unsigned long>::max():
+    if ( topN < 0 )     topN = (std::numeric_limits<__int32>::max)();
+    std::size_t flushByte = (flushMB <= 0)? (std::numeric_limits<std::size_t>::max)():
                                             1000000 * flushMB;
     if (!sql || !filename || !delim_ || myNo < 0 || vODBCStmt_size() <= myNo)   return 0;
     __int32 ret{0};
@@ -571,8 +569,8 @@ textOutODBC(__int32         myNo        ,
                 );
         std::size_t bytes{0};
         auto add_func = [&](std::size_t x) {
-            if ( topN <= x )        return false;
-            txtOut_str->put(elem);
+            if ( topN <= static_cast<__int32>(x) )      return false;
+            if ( !txtOut_str->put(elem) )               return false;
             bytes += elem.size() * sizeof(wchar_t);
             if ( flushByte < bytes )
             {
@@ -581,7 +579,7 @@ textOutODBC(__int32         myNo        ,
             }
             elem.clear();
             ++ret;
-            txtOut_str->put(L'\n');
+            txtOut_str->lineFeed();
             return true;
         };
         auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
@@ -778,20 +776,28 @@ namespace {
                                fileName, 
                                (codepage==1200)?    L"wt, ccs=UTF-16LE":
                                (codepage==65001)?   L"wt, ccs=UTF-8":
-                               L"rt");     //ANSI(1252)
+                               L"wt");     //ANSI(1252)
         fc_RAII = fileCloseRAII{err? nullptr: fp};
     }
 
-    void fputws_t::put(wchar_t x) const noexcept
+    void fputws_t::lineFeed() const noexcept
     {
         auto fp = fc_RAII.get();
-        if ( fp )       std::fputwc(x, fp);
+        if ( fp )       std::fputwc(L'\n', fp);
     }
 
-    void fputws_t::put(std::wstring const& x) const noexcept
+    bool fputws_t::put(std::wstring const& x) const noexcept
     {
         auto fp = fc_RAII.get();
-        if ( fp )       std::fputws(x.data(), fp);
+        if ( fp )
+        {
+            if (0 <= std::fputws(x.data(), fp))
+                return true;
+            else
+                return false;
+        }
+        //if ( fp )   return  (0 <= std::fputws(x.data(), fp))? true: false;
+        else        return false;
     }
 
     void fputws_t::flush() const noexcept
@@ -807,14 +813,19 @@ namespace {
         ofs.imbue(std::locale("", LC_CTYPE));
     }
 
-    void ofstream_t::put(wchar_t x) const noexcept
+    void ofstream_t::lineFeed() const noexcept
     {
-        ofs << x;
+        ofs << L'\n';
     }
 
-    void ofstream_t::put(std::wstring const& x) const noexcept
+    bool ofstream_t::put(std::wstring const& x) const noexcept
     {
         ofs << x;
+        if (ofs.fail())
+            return false;
+        else
+            return true;
+        //return ofs.fail() ?false: true;
     }
 
     void ofstream_t::flush() const noexcept
