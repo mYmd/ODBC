@@ -82,7 +82,7 @@ namespace {
         using fileCloseRAII = std::unique_ptr<FILE, file_closer>;
         fileCloseRAII   fc_RAII;
     public:
-        fputws_t(BSTR fileName, UINT codepage) noexcept;
+        fputws_t(BSTR fileName, UINT codepage, bool append) noexcept;
         void lineFeed() const noexcept;
         bool put(std::wstring const& x) const noexcept;
         void flush() const noexcept;
@@ -91,7 +91,7 @@ namespace {
     class ofstream_t : public textFileOut_t     {
         mutable std::wofstream ofs;
     public:
-        ofstream_t(BSTR fileName, UINT codepage) noexcept;
+        ofstream_t(BSTR fileName, UINT codepage, bool append) noexcept;
         void lineFeed() const noexcept;
         bool put(std::wstring const& x) const noexcept;
         void flush() const noexcept;
@@ -520,11 +520,7 @@ namespace
                         std::vector<SQLSMALLINT>&   ,
                         std::vector<SQLSMALLINT>&   ) noexcept
         {   v_colname = std::move(colname);     }
-        
     };
-
-
-
 }
 
 // テキストファイル出力
@@ -534,6 +530,7 @@ textOutODBC(__int32         myNo        ,
             VARIANT const&  fileName    ,
             VARIANT const&  delimiter   ,
             __int8          quote       ,
+            __int8          append      ,
             __int32         codepage_   ,
             __int32         topN        ,
             __int32         flushMB     ) noexcept
@@ -564,13 +561,17 @@ textOutODBC(__int32         myNo        ,
         };
         std::unique_ptr<textFileOut_t> txtOut_str(
                 ( codepage == 1252 || codepage == 1200 || codepage == 65001 )?
-                    static_cast<textFileOut_t*>(new fputws_t(filename, codepage)) :
-                    static_cast<textFileOut_t*>(new ofstream_t(filename, codepage))
+                    static_cast<textFileOut_t*>(new fputws_t(filename, codepage, append? true: false)) :
+                    static_cast<textFileOut_t*>(new ofstream_t(filename, codepage, append? true: false))
                 );
         std::size_t bytes{0};
         auto add_func = [&](std::size_t x) {
             if ( topN <= static_cast<__int32>(x) )      return false;
-            if ( !txtOut_str->put(elem) )               return false;
+            if ( !txtOut_str->put(elem) )
+            {
+                ret *= -1;
+                return false;
+            }
             bytes += elem.size() * sizeof(wchar_t);
             if ( flushByte < bytes )
             {
@@ -613,7 +614,7 @@ namespace {
 
     VARIANT makeVariantFromSQLType(SQLSMALLINT type, LPCOLESTR expr) noexcept
     {
-        if (!expr)      return iVariant(VT_NULL);
+        if (!expr)      return iVariant();
         switch (type)
         {
         case SQL_CHAR:      case SQL_VARCHAR:       case SQL_LONGVARCHAR:
@@ -661,7 +662,7 @@ namespace {
             ret.date = dOut;
             return ret;
         }
-        default:    return iVariant(VT_NULL);
+        default:    return iVariant();
         }
     }
 
@@ -769,14 +770,16 @@ namespace {
     //**********************************
     textFileOut_t::~textFileOut_t() {}
 
-    fputws_t::fputws_t(BSTR fileName, UINT codepage) noexcept
+    fputws_t::fputws_t(BSTR fileName, UINT codepage, bool append) noexcept
     {
         FILE* fp = nullptr;
-        auto err = ::_wfopen_s(&fp,
-                               fileName, 
-                               (codepage==1200)?    L"wt, ccs=UTF-16LE":
-                               (codepage==65001)?   L"wt, ccs=UTF-8":
-                               L"wt");     //ANSI(1252)
+        auto openmode = append?
+            ((codepage==1200)? L"a+t, ccs=UTF-16LE":
+            (codepage==65001)? L"a+t, ccs=UTF-8":   L"a+t"  )
+            :
+            ((codepage==1200)? L"wt, ccs=UTF-16LE":
+            (codepage==65001)? L"wt, ccs=UTF-8":    L"wt"   );
+        auto err = ::_wfopen_s(&fp, fileName,  openmode);
         fc_RAII = fileCloseRAII{err? nullptr: fp};
     }
 
@@ -807,10 +810,11 @@ namespace {
     }
 
     //----------------------------------------------------
-    ofstream_t::ofstream_t(BSTR fileName, UINT codepage) noexcept
-            : ofs(fileName, std::ios_base::out | std::ios_base::trunc)
+    ofstream_t::ofstream_t(BSTR fileName, UINT codepage, bool append) noexcept
+            : ofs(fileName, append? (std::ios_base::out | std::ios_base::app):
+                                    (std::ios_base::out | std::ios_base::trunc))
     {
-        ofs.imbue(std::locale("", LC_CTYPE));
+        ofs.imbue(std::locale("Japanese", LC_CTYPE));
     }
 
     void ofstream_t::lineFeed() const noexcept

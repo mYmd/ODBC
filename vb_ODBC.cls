@@ -107,9 +107,10 @@ Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
                                     ByRef fileName As Variant, _
                                 ByRef delimiter As Variant, _
                             ByVal quote As Boolean, _
-                        ByVal codepage_ As Long, _
-                    ByVal topN As Long, _
-                ByVal flushMB As Long) As Long
+                        ByVal append As Boolean, _
+                    ByVal codepage_ As Long, _
+                ByVal topN As Long, _
+            ByVal flushMB As Long) As Long
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal buf As String, _
@@ -319,14 +320,15 @@ End Function
 'テキストファイル出力
 Public Function textOut(ByVal sqlExpr As String, _
                         ByVal fileName As String, _
-                        Optional ByVal codepage As String = "SHIFT-JIS", _
+                        ByVal codepage As String, _
                         Optional ByVal delimiter As String = ",", _
                         Optional ByVal quote As Boolean = False, _
+                        Optional ByVal append As Boolean = False, _
                         Optional ByVal topN As Long = -1, _
                         Optional ByVal flushMB As Long = -1) As Long
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, getCodePage_(codepage), topN, flushMB)
+    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, append, getCodePage_(codepage), topN, flushMB)
     laptime_ = GetTickCount() - laptime_
 End Function
 
