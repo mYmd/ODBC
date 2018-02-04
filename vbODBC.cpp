@@ -18,8 +18,6 @@ namespace {
         return static_cast<__int32>(vODBCStmt.size());
     }
 
-    bool isNumericType(SQLSMALLINT type) noexcept;
-
     VARIANT makeVariantFromSQLType(SQLSMALLINT, LPCOLESTR) noexcept;
 
     BSTR getBSTR(VARIANT const&) noexcept;
@@ -81,6 +79,7 @@ namespace {
         };
         using fileCloseRAII = std::unique_ptr<FILE, file_closer>;
         fileCloseRAII   fc_RAII;
+        UINT codepage_;
     public:
         fputws_t(BSTR fileName, UINT codepage, bool append) noexcept;
         void lineFeed() const noexcept;
@@ -89,7 +88,8 @@ namespace {
     };
 
     class ofstream_t : public textFileOut_t     {
-        mutable std::wofstream ofs;
+        mutable std::ofstream ofs;
+        UINT codepage_;
     public:
         ofstream_t(BSTR fileName, UINT codepage, bool append) noexcept;
         void lineFeed() const noexcept;
@@ -560,7 +560,7 @@ textOutODBC(__int32         myNo        ,
             if ( j < col_N - 1 )    elem += delim;
         };
         std::unique_ptr<textFileOut_t> txtOut_str(
-                ( codepage == 1252 || codepage == 1200 || codepage == 65001 )?
+                ( codepage == 932 || codepage == 1252 || codepage == 1200 || codepage == 65001 )?
                     static_cast<textFileOut_t*>(new fputws_t(filename, codepage, append? true: false)) :
                     static_cast<textFileOut_t*>(new ofstream_t(filename, codepage, append? true: false))
                 );
@@ -598,19 +598,6 @@ textOutODBC(__int32         myNo        ,
 }
 
 namespace {
-
-    bool isNumericType(SQLSMALLINT type) noexcept
-    {
-        switch (type)
-        {
-        case SQL_NUMERIC:   case SQL_DECIMAL:   case SQL_FLOAT: case SQL_REAL:  case SQL_DOUBLE:
-        {
-            return true;
-        }
-        default:
-            return false;
-        }
-    }
 
     VARIANT makeVariantFromSQLType(SQLSMALLINT type, LPCOLESTR expr) noexcept
     {
@@ -770,23 +757,27 @@ namespace {
     //**********************************
     textFileOut_t::~textFileOut_t() {}
 
-    fputws_t::fputws_t(BSTR fileName, UINT codepage, bool append) noexcept
+    fputws_t::fputws_t(BSTR fileName, UINT codepage, bool append) noexcept : codepage_{codepage}
     {
         FILE* fp = nullptr;
-        auto openmode = append?
-            ((codepage==1200)? L"a+t, ccs=UTF-16LE":
-            (codepage==65001)? L"a+t, ccs=UTF-8":   L"a+t"  )
-            :
-            ((codepage==1200)? L"wt, ccs=UTF-16LE":
-            (codepage==65001)? L"wt, ccs=UTF-8":    L"wt"   );
-        auto err = ::_wfopen_s(&fp, fileName,  openmode);
+        auto openmode = std::wstring(append? L"a+t": L"wt");
+        if ( codepage==1200 )   openmode += L", ccs=UTF-16LE";
+        if ( codepage==65001 )  openmode += L", ccs=UTF-8";
+        auto err = ::_wfopen_s(&fp, fileName,  openmode.data());
         fc_RAII = fileCloseRAII{err? nullptr: fp};
     }
 
     void fputws_t::lineFeed() const noexcept
     {
         auto fp = fc_RAII.get();
-        if ( fp )       std::fputwc(L'\n', fp);
+        if ( fp )
+        {
+            switch (codepage_)
+            {
+            case 1200: case 65001:  std::fputwc(L'\n', fp); break;
+            case 932:  case 1252:   std::fputc('\n', fp); break;
+            }
+        }
     }
 
     bool fputws_t::put(std::wstring const& x) const noexcept
@@ -794,12 +785,22 @@ namespace {
         auto fp = fc_RAII.get();
         if ( fp )
         {
-            if (0 <= std::fputws(x.data(), fp))
-                return true;
-            else
-                return false;
+            switch (codepage_)
+            {
+            case 1200: case 65001:  // UTF-16, UTF-8
+            {
+                return  (0 <= std::fputws(x.data(), fp))? true: false;
+            }
+            case 932:  case 1252:   //SHIFT-JIS, ANSI
+            {
+                std::string buf;
+                auto b = ::WideCharToMultiByte(CP_ACP, 0, x.data(), -1, nullptr, 0, nullptr, nullptr);
+                buf.resize(b);
+                b = ::WideCharToMultiByte(CP_ACP, 0, x.data(), -1, &buf[0], b, nullptr, nullptr); 
+                return  (0 <= std::fputs(buf.data(), fp))? true: false;
+            }
+            }
         }
-        //if ( fp )   return  (0 <= std::fputws(x.data(), fp))? true: false;
         else        return false;
     }
 
@@ -812,23 +813,25 @@ namespace {
     //----------------------------------------------------
     ofstream_t::ofstream_t(BSTR fileName, UINT codepage, bool append) noexcept
             : ofs(fileName, append? (std::ios_base::out | std::ios_base::app):
-                                    (std::ios_base::out | std::ios_base::trunc))
+                                    (std::ios_base::out | std::ios_base::trunc)),
+              codepage_(codepage)
     {
-        ofs.imbue(std::locale("Japanese", LC_CTYPE));
+        //ofs.imbue(std::locale("", LC_CTYPE));
     }
 
     void ofstream_t::lineFeed() const noexcept
     {
-        ofs << L'\n';
+        ofs << '\n';
     }
 
     bool ofstream_t::put(std::wstring const& x) const noexcept
     {
-        ofs << x;
-        if (ofs.fail())
-            return false;
-        else
-            return true;
+        std::string buf;
+        auto b = ::WideCharToMultiByte(codepage_, 0, x.data(), -1, nullptr, 0, nullptr, nullptr);
+        buf.resize(b);
+        b = ::WideCharToMultiByte(codepage_, 0, x.data(), -1, &buf[0], b, nullptr, nullptr); 
+        ofs << buf;
+        return !ofs.fail();
         //return ofs.fail() ?false: true;
     }
 

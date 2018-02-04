@@ -312,7 +312,7 @@ End Function
             Case "OEM":                         getCodePage_ = 1
             Case "SYMBOL", "SYMBOL42":          getCodePage_ = 42
             Case Else
-                If IsNumeric(cp) Then getCodePage_ = CLng(cp) Else getCodePage_ = 932
+                If IsNumeric(cp) Then getCodePage_ = CLng(cp) Else getCodePage_ = 65001
             End Select
         End Function
 '---------------------------------------------------------------
