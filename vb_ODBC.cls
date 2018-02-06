@@ -305,6 +305,7 @@ End Function
             Case "UTF-16", "UTF16", "UTF-16-LE", "UTF16-LE":
                                                 getCodePage_ = 1200
             Case "UTF-8", "UTF8":               getCodePage_ = 65001
+            Case "UTF-8N", "UTF8N":             getCodePage_ = -65001
             Case "UTF-7", "UTF7":               getCodePage_ = 65000
             Case "ANSI":                        getCodePage_ = 1252  'ANSI(1252)
             Case "SJIS", "S-JIS", "SHIFT-JIS":  getCodePage_ = 932
@@ -500,5 +501,3 @@ Public Function sqlServer_expr(ByVal server As String, _
     End If
     '               SELECT * FROM sysobjects WHERE xtype = 'U'
 End Function
-
-
