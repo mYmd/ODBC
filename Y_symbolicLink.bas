@@ -57,15 +57,12 @@ End Function
 
 ' 接続されているドライブレターの取得
 Public Function GetLogicalDrives() As String
-    Dim d As Long:  d = GetLogicalDrives_imple()
-    Dim i As Long:  i = 0
-    Do While d > 0
-        If d Mod 2 = 1 Then
-            GetLogicalDrives = GetLogicalDrives & VBA.Chr(VBA.Asc("A") + i)
-        End If
-        d = d \ 2
-        i = i + 1
-    Loop
+    Dim fso As Object, dc As Object, d As Variant
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set dc = fso.Drives
+    For Each d In dc
+        GetLogicalDrives = GetLogicalDrives & d.DriveLetter
+    Next
 End Function
 
 ' ファイル一覧
@@ -79,7 +76,7 @@ Function getFileFolderList(ByVal folderName As String, _
     Dim ret As Variant
     Dim i As Long
     Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.FolderExists(folderName) Then Exit Function
+    If Not fso.folderExists(folderName) Then Exit Function
     Set fDer = fso.GetFolder(folderName)
     If files_only Then
         Set filesCollection = fDer.files
@@ -96,7 +93,7 @@ Function getFileFolderList(ByVal folderName As String, _
             ret(i, 1) = z.DateLastModified 'DateCreated
             i = i + 1
         Next z
-        getFileFolderList = catC(subM(ret, reverse(sortIndex(ret, Array(1)))), transpose(iota(1, rowSize(ret))))
+        getFileFolderList = catC(subM(ret, reverse(sortIndex(ret, Array(1)))), iota(1, rowSize(ret)))
     End If
     Set filesCollection = Nothing
     Set fDer = Nothing
@@ -109,7 +106,7 @@ Function killFiles(ByRef folderName As Variant, _
           Optional ByVal force As Boolean = False) As Variant
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.FolderExists(folderName) Then Exit Function
+    If Not fso.folderExists(folderName) Then Exit Function
     If Not IsArray(fileNames) Then fileNames = VBA.Array(fileNames)
     Dim ret As Variant:     ret = repeat(0, sizeof(fileNames))
     Dim fileName As Variant
@@ -139,7 +136,7 @@ Function copyFile(ByVal sourceFolder As String, _
          Optional ByVal overwrite As Boolean = False) As Variant
     Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.FolderExists(sourceFolder) Then Exit Function
+    If Not fso.folderExists(sourceFolder) Then Exit Function
     If Not IsArray(fileNames) Then fileNames = VBA.Array(fileNames)
     Dim k As Long:          k = 0
     Dim ret As Variant:     ret = repeat(0, sizeof(fileNames))
@@ -162,10 +159,41 @@ End Function
                                ByRef counter As Variant, _
                                ByVal overwrite As Boolean)
         targetFolder = fso.GetParentFolderName(fso.BuildPath(targetFolder, "_")) & "\"
-        If fso.FileExists(sourceFile) And fso.FolderExists(targetFolder) Then
+        If fso.FileExists(sourceFile) And fso.folderExists(targetFolder) Then
             If overwrite Or Not fso.FileExists(fso.BuildPath(targetFolder, fso.GetFileName(sourceFile))) Then
                 fso.copyFile sourceFile, targetFolder
                 counter = counter + 1
             End If
         End If
     End Sub
+
+' フォルダ作成
+Function createFolder(ByVal folderName As String) As Boolean
+    Dim fso As Object, DriveName As String
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    DriveName = fso.GetDriveName(folderName)
+    If Not fso.DriveExists(DriveName) Then
+        createFolder = False
+    ElseIf fso.GetDrive(DriveName).IsReady Then
+        createFolder = createFolder_imple(fso, folderName)
+    Else
+        createFolder = False
+    End If
+    Set fso = Nothing
+End Function
+
+    Private Function createFolder_imple(ByVal fso As Object, _
+                                    ByVal folderName As String) As Boolean
+        If fso.folderExists(folderName) Then
+            createFolder_imple = True
+        Else
+            If createFolder_imple(fso, fso.GetParentFolderName(folderName)) Then
+                fso.createFolder folderName
+                createFolder_imple = True
+            Else    ' ありえないはず
+                createFolder_imple = False
+            End If
+        End If
+    End Function
+
+
