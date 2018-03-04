@@ -65,37 +65,21 @@ namespace {
     std::vector<std::vector<VARIANT>>
         selectODBC_columnWise_imple(odbc_raii_statement&, BSTR, VARIANT&);
 
-    class textFileOut_t {
-    public:
-        virtual ~textFileOut_t();
-        virtual void lineFeed() const noexcept = 0;
-        virtual bool put(std::wstring const& x) const noexcept = 0;
-        virtual void flush() const noexcept = 0;
-    };
-
-    class fputws_t : public textFileOut_t   {
+    class fputws_t  {
         struct file_closer {
             void operator ()(FILE* pF) const  noexcept { if (pF) ::fclose(pF); }
         };
         using fileCloseRAII = std::unique_ptr<FILE, file_closer>;
         fileCloseRAII   fc_RAII;
         __int32 codepage_;
+        bool CrLf_;
     public:
-        fputws_t(BSTR fileName, __int32 Code_Page, bool append) noexcept;
+        fputws_t(BSTR fileName, __int32 Code_Page, bool append, bool CrLf) noexcept;
         void lineFeed() const noexcept;
         bool put(std::wstring const& x) const noexcept;
         void flush() const noexcept;
     };
 
-    class ofstream_t : public textFileOut_t     {
-        mutable std::ofstream ofs;
-        UINT codepage_;
-    public:
-        ofstream_t(BSTR fileName, UINT Code_Page, bool append) noexcept;
-        void lineFeed() const noexcept;
-        bool put(std::wstring const& x) const noexcept;
-        void flush() const noexcept;
-    };
 }
 
 //----------------------------------------------------------------------
@@ -533,7 +517,8 @@ textOutODBC(__int32         myNo        ,
             __int8          append      ,
             __int32         Code_Page   ,
             __int32         topN        ,
-            __int32         flushMB     ) noexcept
+            __int32         flushMB     ,
+            __int8          CrLf        ) noexcept
 {
     auto sql = getBSTR(SQL_expr);
     auto delim_ = getBSTR(delimiter);
@@ -559,15 +544,11 @@ textOutODBC(__int32         myNo        ,
             if ( quote )            elem += L"\"";
             if ( j < col_N - 1 )    elem += delim;
         };
-        std::unique_ptr<textFileOut_t> txtOut_str(
-                ( codepage == 932 || codepage == 1252 || codepage == 1200 || codepage == 65001 )?
-                    static_cast<textFileOut_t*>(new fputws_t(filename, Code_Page, append? true: false)) :
-                    static_cast<textFileOut_t*>(new ofstream_t(filename, codepage, append? true: false))
-                );
+        fputws_t txtOut_str{filename, Code_Page, append != 0, CrLf != 0};
         std::size_t bytes{0};
         auto add_func = [&](std::size_t x) {
             if ( topN <= static_cast<__int32>(x) )      return false;
-            if ( !txtOut_str->put(elem) )
+            if ( !txtOut_str.put(elem) )
             {
                 ret *= -1;
                 return false;
@@ -575,12 +556,12 @@ textOutODBC(__int32         myNo        ,
             bytes += elem.size() * sizeof(wchar_t);
             if ( flushByte < bytes )
             {
-                txtOut_str->flush();
+                txtOut_str.flush();
                 bytes = 0;
             }
             elem.clear();
             ++ret;
-            txtOut_str->lineFeed();
+            txtOut_str.lineFeed();
             return true;
         };
         auto recordLen = select_table(vODBCStmt[myNo]->stmt(),
@@ -755,16 +736,19 @@ namespace {
     }
 
     //**********************************
-    textFileOut_t::~textFileOut_t() {}
-
-    fputws_t::fputws_t(BSTR fileName, __int32 Code_Page, bool append) noexcept : codepage_{Code_Page}
+    fputws_t::fputws_t(BSTR fileName, __int32 Code_Page, bool append, bool CrLf) noexcept
+        : codepage_{Code_Page}, CrLf_{CrLf}
     {
         FILE* fp = nullptr;
-        auto openmode = std::wstring(append? L"a+t": L"wt");
-        if ( Code_Page==1200 )      openmode += L", ccs=UTF-16LE";
-        if ( Code_Page==65001 )     openmode += L", ccs=UTF-8";
+        auto openmode = std::wstring(append? L"a+": L"w");
+        openmode += (codepage_==1200)? L"t, ccs=UTF-16LE": L"b";
         auto err = ::_wfopen_s(&fp, fileName,  openmode.data());
         fc_RAII = fileCloseRAII{err? nullptr: fp};
+        if ( codepage_ == 65001 ) //UTF-8 with BOM
+        {
+            char bom[] = {char(0xEF), char(0xBB), char(0xBF), '\0' };
+            std::fputs(bom, fp);
+        }
     }
 
     void fputws_t::lineFeed() const noexcept
@@ -772,10 +756,11 @@ namespace {
         auto fp = fc_RAII.get();
         if ( fp )
         {
-            switch (codepage_)
-            {
-            case 1200: case 65001:                  std::fputwc(L'\n', fp); break;
-            case 932:  case 1252:   case -65001:    std::fputc('\n', fp);   break;
+            if ( codepage_ == 1200 ) {
+                std::fputwc(L'\n', fp);
+            } else {
+                if ( CrLf_ )    std::fputc('\r', fp);
+                std::fputc('\n', fp);
             }
         }
     }
@@ -787,11 +772,11 @@ namespace {
         {
             switch (codepage_)
             {
-            case 1200: case 65001:  // UTF-16, UTF-8
+            case 1200:  // UTF-16, UTF-8
             {
                 return  (0 <= std::fputws(x.data(), fp))? true: false;
             }
-            case 932:  case 1252: case -65001:   //SHIFT-JIS, ANSI, UTF-8N
+            case 932:  case 1252:  case 65001:  case -65001:   //SHIFT-JIS, ANSI, UTF-8, UTF-8N
             {
                 auto codepage = static_cast<UINT>(0 <= codepage_? codepage_: -codepage_);
                 std::string buf;
@@ -809,36 +794,6 @@ namespace {
     {
         auto fp = fc_RAII.get();
         if ( fp )       std::fflush(fp);
-    }
-
-    //----------------------------------------------------
-    ofstream_t::ofstream_t(BSTR fileName, UINT Code_Page, bool append) noexcept
-            : ofs(fileName, append? (std::ios_base::out | std::ios_base::app):
-                                    (std::ios_base::out | std::ios_base::trunc)),
-              codepage_(Code_Page)
-    {
-        //ofs.imbue(std::locale("", LC_CTYPE));
-    }
-
-    void ofstream_t::lineFeed() const noexcept
-    {
-        ofs << '\n';
-    }
-
-    bool ofstream_t::put(std::wstring const& x) const noexcept
-    {
-        std::string buf;
-        auto b = ::WideCharToMultiByte(codepage_, 0, x.data(), -1, nullptr, 0, nullptr, nullptr);
-        buf.resize(b);
-        b = ::WideCharToMultiByte(codepage_, 0, x.data(), -1, &buf[0], b, nullptr, nullptr); 
-        ofs << buf;
-        return !ofs.fail();
-        //return ofs.fail() ?false: true;
-    }
-
-    void ofstream_t::flush() const noexcept
-    {
-        ofs << std::flush;
     }
 
 }    //namespace {

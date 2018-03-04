@@ -6,7 +6,7 @@ Attribute VB_Name = "vb_ODBC"
 Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
-Attribute VB_Exposed = True
+Attribute VB_Exposed = False
 Option Explicit
 ' vb_ODBC
 'Copyright (c) 2016 mmYYmmdd
@@ -47,62 +47,62 @@ Option Explicit
 '   Function        sqlServer_expr      SQL ServerÇÃê⁄ë±ï∂éöóÒ
 '*********************************************************************************
 
-Private Declare PtrSafe Sub terminateODBC Lib "vbODBC.dll" (ByVal N As Long)
+Private Declare PtrSafe Sub terminateODBC Lib "vbODBC.dll" (ByVal n As Long)
 
 Private Declare PtrSafe Sub terminateODBC_all Lib "vbODBC.dll" ()
 
 Private Declare PtrSafe Function initODBC Lib "vbODBC.dll" ( _
-                                        ByRef N As Long, _
+                                        ByRef n As Long, _
                                 ByRef rawStr As Variant) As Long
 
 Private Declare PtrSafe Function selectODBC Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                             ByRef SQL As Variant, _
                         ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function selectODBC_rowWise Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByRef SQL As Variant, _
                             ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function selectODBC_columnWise Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByRef SQL As Variant, _
                             ByRef header As Variant) As Variant
 
 Private Declare PtrSafe Function selectODBC_map Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByRef SQL As Variant, _
                             ByRef header As Variant, _
                         ByVal callback As LongPtr, _
                     ByRef param As Variant) As Long
 
 Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
-                                    (ByVal N As Long, _
+                                    (ByVal n As Long, _
                                 ByRef SQL As Variant) As Variant
 
 Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
-                                    (ByVal N As Long, _
+                                    (ByVal n As Long, _
                                 ByRef SQLs As Variant) As Variant
 
 Private Declare PtrSafe Function table_list_all Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByRef schemaName As Variant) As Variant
 
 Private Declare PtrSafe Function columnAttributes_all Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByRef schemaName As Variant, _
                             ByRef tableName As Variant) As Variant
 
 Private Declare PtrSafe Function setQueryTimeout Lib "vbODBC.dll" ( _
-                                    ByVal N As Long, _
+                                    ByVal n As Long, _
                                 ByVal sec As Long) As Long
                                 
 Private Declare PtrSafe Function getStatementError Lib "vbODBC.dll" ( _
-                                    ByVal N As Long) As Variant
+                                    ByVal n As Long) As Variant
 
 Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
-                                            ByVal N As Long, _
+                                            ByVal n As Long, _
                                         ByRef SQL_expr As Variant, _
                                     ByRef fileName As Variant, _
                                 ByRef delimiter As Variant, _
@@ -110,7 +110,8 @@ Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
                         ByVal append As Boolean, _
                     ByVal codepage_ As Long, _
                 ByVal topN As Long, _
-            ByVal flushMB As Long) As Long
+            ByVal flushMB As Long, _
+        ByVal CrLf As Boolean) As Long
 
 Private Declare PtrSafe Function SQLGetInstalledDrivers Lib "odbccp32.dll" ( _
                                             ByVal buf As String, _
@@ -326,10 +327,11 @@ Public Function textOut(ByVal sqlExpr As String, _
                         Optional ByVal quote As Boolean = False, _
                         Optional ByVal append As Boolean = False, _
                         Optional ByVal topN As Long = -1, _
-                        Optional ByVal flushMB As Long = -1) As Long
+                        Optional ByVal flushMB As Long = -1, _
+                        Optional ByVal CrLf As Boolean = True) As Long
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, append, getCodePage_(codepage), topN, flushMB)
+    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, append, getCodePage_(codepage), topN, flushMB, CrLf)
     laptime_ = GetTickCount() - laptime_
 End Function
 
@@ -501,3 +503,5 @@ Public Function sqlServer_expr(ByVal server As String, _
     End If
     '               SELECT * FROM sysobjects WHERE xtype = 'U'
 End Function
+
+
