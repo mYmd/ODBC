@@ -180,6 +180,7 @@ catalogValue(FC&&                        catalog_func    ,
             auto num = (*p) - 1;
             if (num < 0 || nresultcols <= num)    continue;
             ret[p-columnNumber_begin].push_back(buffer_v[num].data());
+            buffer_v[num].fill(wchar_t{});
         }
     }
     return ret;

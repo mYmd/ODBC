@@ -462,12 +462,12 @@ VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, 
             SQLUSMALLINT columns[] = { 4, 6, 11, 9, 5, 7, 17 };
             auto column_attr = catalogValue(column_func, st, columns);
             //------------------------
-            auto column_name = vec2VArray(std::move(column_attr[0]), trans(SQL_CHAR));
-            auto type_name = vec2VArray(std::move(column_attr[1]), trans(SQL_CHAR));
-            auto is_nullable = vec2VArray(std::move(column_attr[2]), trans(SQL_SMALLINT));
-            auto Decimal_Digits = vec2VArray(std::move(column_attr[3]), trans(SQL_SMALLINT));
-            auto column_size = vec2VArray(std::move(column_attr[5]), trans(SQL_INTEGER));
-            auto ordinal_position = vec2VArray(std::move(column_attr[6]), trans(SQL_INTEGER));
+            auto column_name = vec2VArray(std::move(column_attr[0]), trans{SQL_CHAR});
+            auto type_name = vec2VArray(std::move(column_attr[1]), trans{SQL_CHAR});
+            auto is_nullable = vec2VArray(std::move(column_attr[2]), trans{SQL_SMALLINT});
+            auto Decimal_Digits = vec2VArray(std::move(column_attr[3]), trans{SQL_SMALLINT});
+            auto column_size = vec2VArray(std::move(column_attr[5]), trans{SQL_INTEGER});
+            auto ordinal_position = vec2VArray(std::move(column_attr[6]), trans{SQL_INTEGER});
             vec.push_back(column_name);         // 0
             vec.push_back(type_name);           // 1
             vec.push_back(column_size);         // 2
