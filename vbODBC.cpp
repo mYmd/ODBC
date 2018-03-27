@@ -585,14 +585,6 @@ namespace {
         if (!expr)      return iVariant();
         switch (type)
         {
-        case SQL_CHAR:      case SQL_VARCHAR:       case SQL_LONGVARCHAR:
-        case SQL_WCHAR:     case SQL_WVARCHAR:      case SQL_WLONGVARCHAR:
-        case SQL_BINARY:    case SQL_VARBINARY:     case SQL_LONGVARBINARY:
-        {
-            auto ret = iVariant(VT_BSTR);
-            ret.bstrVal = ::SysAllocString(expr);
-            return ret;
-        }
         case SQL_SMALLINT:  case SQL_INTEGER:   case SQL_BIT:   case SQL_TINYINT:
         {
             long lOut;
@@ -630,7 +622,12 @@ namespace {
             ret.date = dOut;
             return ret;
         }
-        default:    return iVariant();
+        default:            //  SQL_CHAR:SQL_VARCHAR:SQL_WCHAR etc
+        {
+            auto ret = iVariant(VT_BSTR);
+            ret.bstrVal = ::SysAllocString(expr);
+            return ret;
+        }
         }
     }
 
