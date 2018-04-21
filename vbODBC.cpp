@@ -5,7 +5,6 @@
 #include <memory>
 #include <OleAuto.h>
 #include <fstream>
-#include <codecvt>
 
 using namespace mymd;
 
