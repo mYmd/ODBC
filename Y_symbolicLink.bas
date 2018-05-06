@@ -3,6 +3,20 @@ Attribute VB_Name = "Y_symbolicLink"
 'Copyright (c) 2015 mmYYmmdd
 Option Explicit
 
+'*********************************************************************************
+'   ファイル関連ユーティリティ
+'*********************************************************************************
+'   Function CreateSymbolicLink     シンボリックリンクの作成
+'   Function CreateHardLink         ハードリンクの作成
+'   Function GetLogicalDrives       接続されているドライブレターの取得
+'   Function getFileFolderList      ファイル（フォルダ）の一覧
+'   Function killFiles              ファイル削除
+'   Function copyFile               ファイルコピー
+'   Function createFolder           フォルダ作成
+'   Function findFolders            述語によるフォルダ検索
+'   Function findFiles              述語によるファイル検索
+'*********************************************************************************
+
 Public Declare PtrSafe Function CreateSymbolicLinkW Lib "kernel32.dll" ( _
                         ByVal toName As String, _
                     ByVal fromName As String, _
@@ -24,8 +38,6 @@ Public Declare PtrSafe Function CreateHardLinkA Lib "kernel32.dll" ( _
                 ByVal attr As Long) As Byte
 
 Public Declare PtrSafe Function IsUserAnAdmin Lib "Shell32.dll" () As Byte
-
-Public Declare PtrSafe Function GetLogicalDrives_imple Lib "kernel32.dll" Alias "GetLogicalDrives" () As Long
 
 'VBAから
 'CreateSymbolicLinkA("H:\Projects\LIB\mapM.dll", "H:\Projects\VC\ThreadTest\x64\Release\mapM.dll", 0)
@@ -89,7 +101,7 @@ Function getFileFolderList(ByVal folderName As String, _
         ReDim ret(0 To filesCollection.Count - 1, 0 To 1)
         i = LBound(ret)
         For Each z In filesCollection
-            ret(i, 0) = z.name
+            ret(i, 0) = z.Name
             ret(i, 1) = z.DateLastModified 'DateCreated
             i = i + 1
         Next z
@@ -169,31 +181,86 @@ End Function
 
 ' フォルダ作成
 Function createFolder(ByVal folderName As String) As Boolean
-    Dim fso As Object, DriveName As String
+    Dim fso As Object
     Set fso = CreateObject("Scripting.FileSystemObject")
-    DriveName = fso.GetDriveName(folderName)
-    If Not fso.DriveExists(DriveName) Then
-        createFolder = False
-    ElseIf fso.GetDrive(DriveName).IsReady Then
-        createFolder = createFolder_imple(fso, folderName)
-    Else
-        createFolder = False
-    End If
+    createFolder = createFolder_imple(fso, folderName)
     Set fso = Nothing
 End Function
 
     Private Function createFolder_imple(ByVal fso As Object, _
                                     ByVal folderName As String) As Boolean
+        createFolder_imple = False
         If fso.folderExists(folderName) Then
             createFolder_imple = True
-        Else
+        ElseIf 0 < Len(folderName) Then
             If createFolder_imple(fso, fso.GetParentFolderName(folderName)) Then
+                On Error GoTo ROUTE0506
                 fso.createFolder folderName
                 createFolder_imple = True
-            Else    ' ありえないはず
-                createFolder_imple = False
             End If
         End If
+ROUTE0506:
     End Function
 
+' 述語によるフォルダ検索（pred が関数でなければ文字列として Like 検索）
+Function findFolders(ByVal folderName As String, ByRef pred As Variant) As Variant
+    Dim fso As Object, fDer As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.folderExists(folderName) Then Exit Function
+    Set fDer = fso.GetFolder(folderName)
+    If is_bindFun(pred) Then
+        findFolders = Split(findFolders_imple(fso, fDer, pred), vbTab)
+    Else
+        findFolders = Split(findFolders_imple(fso, fDer, p_fName_Like(, StrConv(pred, vbLowerCase))), vbTab)
+    End If
+    findFolders = filter_if(p_len, findFolders)
+    Set fDer = Nothing
+    Set fso = Nothing
+End Function
+    
+    Private Function findFolders_imple(ByVal fso As Object, ByVal folder As Object, ByRef p_cond As Variant) As String
+        If applyFun(folder, p_cond) Then
+            findFolders_imple = findFolders_imple & vbTab & folder.Path
+        End If
+        Dim z As Object
+        For Each z In folder.SubFolders
+            findFolders_imple = findFolders_imple & vbTab & findFolders_imple(fso, z, p_cond)
+        Next z
+    End Function
 
+' 述語によるファイル検索（pred が関数でなければ文字列として Like 検索）
+Function findFiles(ByVal folderName As String, ByRef pred As Variant) As Variant
+    Dim fso As Object, fDer As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    If Not fso.folderExists(folderName) Then Exit Function
+    Set fDer = fso.GetFolder(folderName)
+    If is_bindFun(pred) Then
+        findFiles = Split(findFiles_imple(fso, fDer, pred), vbTab)
+    Else
+        findFiles = Split(findFiles_imple(fso, fDer, p_fName_Like(, StrConv(pred, vbLowerCase))), vbTab)
+    End If
+    findFiles = filter_if(p_len, findFiles)
+    Set fDer = Nothing
+    Set fso = Nothing
+End Function
+    
+    Private Function findFiles_imple(ByVal fso As Object, ByVal folder As Object, ByRef p_cond As Variant) As String
+        Dim filesCollection As Object, z As Object
+        Set filesCollection = folder.files
+        For Each z In folder.files
+            If applyFun(z, p_cond) Then
+                findFiles_imple = findFiles_imple & vbTab & z.Path
+            End If
+        Next z
+        For Each z In folder.SubFolders
+            findFiles_imple = findFiles_imple & vbTab & findFiles_imple(fso, z, p_cond)
+        Next z
+    End Function
+
+    ' フォルダ名／ファイル名（小文字）による比較
+    Private Function fName_Like(ByRef obj As Variant, ByRef fName As Variant) As Variant
+        fName_Like = StrConv(obj.Name, vbLowerCase) Like fName
+    End Function
+    Private Function p_fName_Like(Optional ByRef firstParam As Variant, Optional ByRef secondParam As Variant) As Variant
+        p_fName_Like = make_funPointer(AddressOf fName_Like, firstParam, secondParam)
+    End Function
