@@ -372,6 +372,32 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT const& SQLs) noexcept
     }
 }
 
+void __stdcall set_autoCommit(__int32 myNo, __int32 autoCommit) noexcept
+{
+    if ( 0 <= myNo && myNo < vODBCStmt_size() )
+        vODBCStmt[myNo]->set_autoCommmit(autoCommit);
+}
+
+VARIANT __stdcall rollbackODBC(__int32 myNo) noexcept
+{
+    if ( myNo < 0 || vODBCStmt_size() <= myNo )     return iVariant();
+    cursor_colser   c_closer(vODBCStmt[myNo]->stmt(), true);
+    if ( vODBCStmt[myNo]->rollback() )              return iVariant();
+    SQLDiagRec<SQL_HANDLE_DBC>            diagRec;
+    vODBCStmt[myNo]->conn().invoke(diagRec);
+    return makeVariantFromSQLType(SQL_CHAR, diagRec.getMessage().data());
+}
+
+VARIANT __stdcall commitODBC(__int32 myNo) noexcept
+{
+    if ( myNo < 0 || vODBCStmt_size() <= myNo )     return iVariant();
+    cursor_colser   c_closer(vODBCStmt[myNo]->stmt(), true);
+    if ( vODBCStmt[myNo]->commit() )                return iVariant();
+    SQLDiagRec<SQL_HANDLE_DBC>            diagRec;
+    vODBCStmt[myNo]->conn().invoke(diagRec);
+    return makeVariantFromSQLType(SQL_CHAR, diagRec.getMessage().data());
+}
+
 // ÉeÅ[ÉuÉãàÍóó
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexcept
 {

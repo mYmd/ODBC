@@ -33,6 +33,9 @@ Option Explicit
 '   Function        select_columnWise   Select文を発行して列の配列としてメンバに格納する
 '   Function        select_map          Select文を発行して行ごとにコールバックを呼ぶ
 '   Function        exec                insert文やdelete文を実行する
+'   Sub             autoCommit          AUTO COMMIT 設定（デフォルトでは、True:AutoCommit）
+'   Sub             rollback            トランザクションのロールバック（AUTO COMMIT設定=Falseの時のみ意味あり）
+'   Sub             commit              トランザクションのコミット（AUTO COMMIT設定=Falseの時のみ意味あり）
 '   Function        textOut             テキストファイル出力
 '   Function        rowSize             テーブルのレコード数
 '   Function        colSize             テーブルのカラム数
@@ -85,6 +88,16 @@ Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
                                 ByRef SQLs As Variant) As Variant
 
+Private Declare PtrSafe Sub set_autoCommit Lib "vbODBC.dll" _
+                                    (ByVal n As Long, _
+                                ByVal autoCommit As Long)
+                                
+Private Declare PtrSafe Function rollbackODBC Lib "vbODBC.dll" _
+                                    (ByVal n As Long) As Variant
+                                
+Private Declare PtrSafe Function commitODBC Lib "vbODBC.dll" _
+                                    (ByVal n As Long) As Variant
+                                
 Private Declare PtrSafe Function table_list_all Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef schemaName As Variant) As Variant
@@ -298,6 +311,21 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     laptime_ = GetTickCount() - laptime_
     Set exec = Me
 End Function
+
+'AUTO COMMIT 設定（デフォルトでは、True:AutoCommit）
+Public Sub autoCommit(ByVal b As Boolean)
+    Call set_autoCommit(myNo_, IIf(b, 1, 0))
+End Sub
+
+' トランザクションのロールバック（AUTO COMMIT設定=Falseの時のみ意味あり）
+Public Sub rollback()
+    myErrorNo_ = rollbackODBC(myNo_)
+End Sub
+
+' トランザクションのコミット（AUTO COMMIT設定=Falseの時のみ意味あり）
+Public Sub commit()
+    myErrorNo_ = commitODBC(myNo_)
+End Sub
 
 '---------------------------------------------------------------
         ' 文字変換用コードページ

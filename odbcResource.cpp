@@ -37,13 +37,14 @@ bool odbc_raii_env::AllocHandle() noexcept
 }
 
 //********************************************************
-odbc_raii_connect::odbc_raii_connect() noexcept : hdbc(0)
+odbc_raii_connect::odbc_raii_connect() noexcept : hdbc(0), autoCommit(true)
 {}
 
 odbc_raii_connect::~odbc_raii_connect() noexcept
 {
     if (!too_late_to_destruct)
     {
+        rollback();
         ::SQLDisconnect(hdbc);
         ::SQLFreeConnect(hdbc);
     }
@@ -55,6 +56,26 @@ bool odbc_raii_connect::AllocHandle(const odbc_raii_env& env) noexcept
         [=](HENV x) { return ::SQLAllocHandle(SQL_HANDLE_DBC, x, &hdbc); }
     );
     return SQL_SUCCESS == rc;
+}
+
+void odbc_raii_connect::set_autoCommmit(bool b) noexcept
+{
+    if ( hdbc )
+    {
+        autoCommit = b;
+        auto ac = b ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF;
+        auto ret = ::SQLSetConnectAttr(hdbc, SQL_ATTR_AUTOCOMMIT, reinterpret_cast<SQLPOINTER>(static_cast<ULONG_PTR>(ac)), 0);
+    }    
+}
+
+bool odbc_raii_connect::rollback() const noexcept
+{
+    return hdbc && !autoCommit && SQL_SUCCESS == ::SQLEndTran(SQL_HANDLE_DBC, hdbc, SQL_ROLLBACK);
+}
+
+bool odbc_raii_connect::commit() const noexcept
+{
+    return hdbc && (autoCommit || SQL_SUCCESS == ::SQLEndTran(SQL_HANDLE_DBC, hdbc, SQL_COMMIT));
 }
 
 //********************************************************
@@ -137,12 +158,32 @@ odbc_set::odbc_set(const std::wstring& connectName, decltype(SQL_CURSOR_FORWARD_
     }
 }
 
+odbc_raii_connect& odbc_set::conn() noexcept
+{
+    return con;
+}
+
 odbc_raii_statement& odbc_set::stmt() noexcept
 {
     return st;
 }
 
-void odbc_set::set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept
+void odbc_set::set_autoCommmit(bool b) noexcept
+{
+    con.set_autoCommmit(b);
+}
+
+bool odbc_set::rollback() const noexcept
+{
+    return con.rollback();
+}
+
+bool odbc_set::commit() const noexcept
+{
+    return con.commit();
+}
+
+void odbc_set::set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) const noexcept
 {
     auto ValuePtr = reinterpret_cast<SQLPOINTER>(static_cast<ULONG_PTR>(cursor_type));
     st.invoke(
@@ -156,11 +197,6 @@ void odbc_set::set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept
 bool odbc_set::isError() const noexcept
 {
     return 0 < errorMessage_.size();
-}
-
-void odbc_set::setErrorMessage(std::wstring && t) noexcept
-{
-    errorMessage_ = std::move(t);
 }
 
 std::wstring odbc_set::errorMessage() const

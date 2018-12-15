@@ -38,6 +38,7 @@ public:
 //**************************************************************
 class odbc_raii_connect {
     HDBC    hdbc;
+    bool    autoCommit;
     odbc_raii_connect(const odbc_raii_connect&) = delete;
     odbc_raii_connect(odbc_raii_connect&&) = delete;
     odbc_raii_connect& operator =(const odbc_raii_connect&) = delete;
@@ -46,6 +47,9 @@ public:
     odbc_raii_connect() noexcept;
     ~odbc_raii_connect() noexcept;
     bool AllocHandle(const odbc_raii_env& env) noexcept;
+    void set_autoCommmit(bool) noexcept;
+    bool rollback() const noexcept;
+    bool commit() const noexcept;
     template <typename T>
     RETCODE invoke(T&& expr) const noexcept
     {
@@ -90,10 +94,13 @@ class odbc_set {
 public:
     explicit odbc_set(const std::wstring& connectName,
                       decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type = SQL_CURSOR_FORWARD_ONLY) noexcept;
+    odbc_raii_connect& conn() noexcept;
     odbc_raii_statement& stmt() noexcept;
-    void set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) noexcept;
+    void set_autoCommmit(bool) noexcept;
+    bool rollback() const noexcept;
+    bool commit() const noexcept;
+    void set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) const noexcept;
     bool isError() const noexcept;
-    void setErrorMessage(std::wstring&&) noexcept;
     std::wstring errorMessage() const;
 };
 
@@ -206,7 +213,7 @@ RETCODE execDirect(const std::wstring& sql_expr, const odbc_raii_statement& stmt
 //******************************************************************
 template <typename F>
 SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
-                            std::wstring const&                      sql_expr,
+                            std::wstring const&                 sql_expr,
                             std::vector<std::wstring>*          pBuffer,
                             std::vector<SQLLEN>*                pdatastrlen,
                             F&&                                 write_func,
