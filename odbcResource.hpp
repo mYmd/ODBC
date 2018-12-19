@@ -47,7 +47,7 @@ public:
     odbc_raii_connect() noexcept;
     ~odbc_raii_connect() noexcept;
     bool AllocHandle(const odbc_raii_env& env) noexcept;
-    void set_autoCommmit(bool) noexcept;
+    void set_autoCommit(bool) noexcept;
     bool rollback() const noexcept;
     bool commit() const noexcept;
     template <typename T>
@@ -96,7 +96,7 @@ public:
                       decltype(SQL_CURSOR_FORWARD_ONLY) cursor_type = SQL_CURSOR_FORWARD_ONLY) noexcept;
     odbc_raii_connect& conn() noexcept;
     odbc_raii_statement& stmt() noexcept;
-    void set_autoCommmit(bool) noexcept;
+    void set_autoCommit(bool) noexcept;
     bool rollback() const noexcept;
     bool commit() const noexcept;
     void set_cursor_type(decltype(SQL_CURSOR_STATIC) cursor_type) const noexcept;

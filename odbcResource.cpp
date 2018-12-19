@@ -58,7 +58,7 @@ bool odbc_raii_connect::AllocHandle(const odbc_raii_env& env) noexcept
     return SQL_SUCCESS == rc;
 }
 
-void odbc_raii_connect::set_autoCommmit(bool b) noexcept
+void odbc_raii_connect::set_autoCommit(bool b) noexcept
 {
     if ( hdbc )
     {
@@ -168,9 +168,9 @@ odbc_raii_statement& odbc_set::stmt() noexcept
     return st;
 }
 
-void odbc_set::set_autoCommmit(bool b) noexcept
+void odbc_set::set_autoCommit(bool b) noexcept
 {
-    con.set_autoCommmit(b);
+    con.set_autoCommit(b);
 }
 
 bool odbc_set::rollback() const noexcept

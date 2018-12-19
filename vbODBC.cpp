@@ -372,10 +372,10 @@ VARIANT __stdcall execODBC(__int32 myNo, VARIANT const& SQLs) noexcept
     }
 }
 
-void __stdcall set_autoCommit(__int32 myNo, __int32 autoCommit) noexcept
+void __stdcall set_autoCommit_(__int32 myNo, __int32 autoCommit) noexcept
 {
     if ( 0 <= myNo && myNo < vODBCStmt_size() )
-        vODBCStmt[myNo]->set_autoCommmit(autoCommit);
+        vODBCStmt[myNo]->set_autoCommit(autoCommit);
 }
 
 VARIANT __stdcall rollbackODBC(__int32 myNo) noexcept

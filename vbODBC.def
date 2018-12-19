@@ -14,7 +14,7 @@ EXPORTS
 	selectODBC_columnWise = selectODBC_columnWise
 	columnAttributes = columnAttributes
 	execODBC = execODBC
-	set_autoCommit = set_autoCommit
+	set_autoCommit = set_autoCommit_
 	rollbackODBC = rollbackODBC
 	commitODBC = commitODBC
 	table_list_all = table_list_all
