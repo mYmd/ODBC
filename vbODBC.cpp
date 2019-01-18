@@ -39,6 +39,11 @@ VARIANT iVariant(VARTYPE t = VT_EMPTY) noexcept
     return ret;
 }
 
+struct swap_v_t {
+    void operator ()(VARIANT& a, VARIANT& b) const noexcept { std::swap(a, b); }
+    void operator ()(VARIANT& a, VARIANT&& b) const noexcept { std::swap(a, b); }
+};
+
 template <typename Container_t>
 VARIANT vec2VArray(Container_t&&) noexcept;
 
@@ -196,7 +201,7 @@ VARIANT __stdcall selectODBC_rowWise(__int32 myNo, VARIANT const& SQL, VARIANT& 
                                       elem_func,
                                       add_func);
         ::VariantClear(&header);
-        std::swap(header, header_func.getHeader());
+        header = header_func.getHeader();
         return vec2VArray(std::move(vec));
     }
     catch (const std::exception&)
@@ -297,7 +302,7 @@ __int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& head
                                       elem_func,
                                       add_func);
         ::VariantClear(&header);
-        std::swap(header, header_func.getHeader());
+        header = header_func.getHeader();
         return ret;
     }
     catch (const std::exception&)
@@ -696,10 +701,11 @@ VARIANT vec2VArray(Container_t&& cont, F&& trans) noexcept
     if (!it)            return iVariant();
     auto const elemsize = ::SafeArrayGetElemsize(pArray.get());
     std::size_t i{ 0 };
+    swap_v_t swap_v;
     try
     {
         for (auto p = cont.begin(); p != cont.end(); ++p, ++i)
-            std::swap(*reinterpret_cast<VARIANT*>(it + i * elemsize), std::forward<F>(trans)(*p));
+            swap_v(*reinterpret_cast<VARIANT*>(it + i * elemsize), std::forward<F>(trans)(*p));
         auto ret = iVariant(VT_ARRAY | VT_VARIANT);
         ret.parray = pArray.get();
         try { cont.clear(); }
@@ -731,7 +737,7 @@ selectODBC_columnWise_imple(odbc_raii_statement& st, BSTR sql, VARIANT& header)
                                   elem_func,
                                   add_func);
     ::VariantClear(&header);
-    std::swap(header, header_func.getHeader());
+    header = header_func.getHeader();
     return vec;
 }
 
