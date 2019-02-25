@@ -296,7 +296,8 @@ struct no_header {
                     std::vector<SQLULEN>&,
                     std::vector<SQLSMALLINT>&,
                     std::vector<SQLSMALLINT>&,
-                    std::vector<SQLSMALLINT>&) noexcept {  }
+                    std::vector<SQLSMALLINT>&) const noexcept   {   }
+    void operator()(SQLSMALLINT) const noexcept                 {   }
 };
 
 struct bool_sentinel {
@@ -346,7 +347,7 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
         while (true)
         {
             for (int j = 0; j < nresultcols; ++j)
-                buffer[j][0] = '\0';
+                buffer[j][0] = L'\0';
             auto const rc = stmt.invoke(std::forward<FtCur>(fetch_expr));
             if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
             {
