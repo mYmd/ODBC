@@ -263,13 +263,13 @@ VARIANT __stdcall selectODBC(__int32 myNo, VARIANT const& SQL_expr, VARIANT& hea
 }
 
 #if  defined _M_X64
-using vbLongLong = __int64;
+using vbLongPtr_t = __int64;
 #else
-using vbLongLong = __int32;
+using vbLongPtr_t = __int32;
 #endif
 
-// s‚²‚Æ‚ÌƒR[ƒ‹ƒoƒbƒN
-__int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& header, vbLongLong fun, VARIANT& param) noexcept
+// 行ごとのコールバック
+__int32 __stdcall selectODBC_map(__int32 myNo, VARIANT const& SQL, VARIANT& header, vbLongPtr_t fun, VARIANT& param) noexcept
 {
     using vbCallbackFunc_t = __int32(__stdcall *)(__int32, VARIANT&, VARIANT&);
     auto callback = reinterpret_cast<vbCallbackFunc_t>(fun);
@@ -405,7 +405,7 @@ VARIANT __stdcall commitODBC(__int32 myNo) noexcept
     return makeVariantFromSQLType(SQL_CHAR, diagRec.getMessage().data());
 }
 
-// ƒe[ƒuƒ‹ˆê——
+// テーブル一覧
 VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexcept
 {
     auto schema_name_b = getBSTR(schemaName);
@@ -458,7 +458,7 @@ VARIANT __stdcall table_list_all(__int32 myNo, VARIANT const& schemaName) noexce
 // 18   IS_NULLABLE         VARCHAR(254)
 //************************************************
 
-// ƒe[ƒuƒ‹‚É‚ ‚é‘SƒJƒ‰ƒ€‚Ì‘®«
+// テーブルにある全カラムの属性
 VARIANT __stdcall columnAttributes_all(__int32 myNo, VARIANT const& schemaName, VARIANT const& tableName) noexcept
 {
     auto schema_name_b = getBSTR(schemaName);
@@ -541,7 +541,7 @@ public:
 };
 }
 
-// ƒeƒLƒXƒgƒtƒ@ƒCƒ‹o—Í
+// テキストファイル出力
 __int32 __stdcall
 textOutODBC(__int32         myNo,
             VARIANT const&  SQL_expr,

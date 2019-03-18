@@ -77,7 +77,7 @@ Private Declare PtrSafe Function selectODBC_map Lib "vbODBC.dll" ( _
                                     ByVal n As Long, _
                                 ByRef SQL As Variant, _
                             ByRef header As Variant, _
-                        ByVal callback As LongPtr, _
+                        ByVal p_callback As LongPtr, _
                     ByRef param As Variant) As Long
 
 Private Declare PtrSafe Function columnAttributes Lib "vbODBC.dll" _
@@ -289,13 +289,13 @@ End Function
 
 ' Select文を発行して行ごとにコールバックを呼ぶ
 ' コールバックのシグニチャは以下の通り。（戻り値が0だとFetch終了）
-' callback(ByVal As Long, ByRef As VARIANT, ByRef As VARIANT) As Long
+' CallBack(ByVal 行番号 As LongPtr, ByRef レコード As VARIANT, ByRef 任意 As VARIANT) As Long
 Public Function select_map(ByVal sqlExpr As String, _
-                        ByVal callback As LongPtr, _
+                        ByVal p_callback As LongPtr, _
                     ByRef param As Variant) As Long
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    select_map = selectODBC_map(myNo_, sqlExpr, myheader_, callback, param)
+    select_map = selectODBC_map(myNo_, sqlExpr, myheader_, p_callback, param)
     myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
 End Function
