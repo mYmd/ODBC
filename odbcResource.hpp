@@ -111,12 +111,12 @@ std::wstring getTypeStr(SQLSMALLINT) noexcept;
 struct column_t {
     static std::size_t const nameSize = 256;
     using name_type = std::array<wchar_t, nameSize>;
-    static std::size_t const bufferSize = 16384;
+    static std::size_t const bufferSize = 65536;
 };
 //********************************************************
 
 //Diagnostic Message êfífÉÅÉbÉZÅ[ÉW
-template <SQLSMALLINT HandleType = SQL_HANDLE_STMT, std::size_t bufferSize = 1024>
+template <SQLSMALLINT HandleType = SQL_HANDLE_STMT, std::size_t bufferSize = SQL_MAX_MESSAGE_LENGTH>
 class SQLDiagRec {
     SQLSMALLINT recNum;
     SQLWCHAR SQLState[6];
@@ -297,7 +297,7 @@ struct no_header {
                     std::vector<SQLSMALLINT>&,
                     std::vector<SQLSMALLINT>&,
                     std::vector<SQLSMALLINT>&) const noexcept   {   }
-    void operator()(SQLSMALLINT) const noexcept                 {   }
+    void operator()(SQLSMALLINT) const noexcept                 {   }   //âΩÇ‡ÇµÇ»Ç¢init_func
 };
 
 struct bool_sentinel {
@@ -306,15 +306,49 @@ struct bool_sentinel {
 };
 
 //******************************************************************
+template<std::size_t N> struct uint_type_ { using type = std::size_t; };
+template<> struct uint_type_<1> { using type = std::uint8_t; };
+template<> struct uint_type_<2> { using type = std::uint16_t; };
+template<> struct uint_type_<4> { using type = std::uint32_t; };
+template<> struct uint_type_<8> { using type = std::uint64_t; };
+
+template <typename F, typename U = void>
+struct counter_type_for_ {
+    using type = std::size_t;
+};
+
+template <typename R, typename T>
+struct counter_type_for_<R(*)(T), void> {
+    using type = typename uint_type_<sizeof(T)>::type;
+};
+
+template <typename R, typename T>
+struct counter_type_for_<R(&)(T), void> {
+    using type = typename uint_type_<sizeof(T)>::type;
+};
+
+template <typename R, typename C, typename T> auto memf_param_type(R(C::*)(T))->T;
+
+template <typename R, typename C, typename T> auto memf_param_type(R(C::*)(T) const)->T;
+
+template <typename F>
+struct counter_type_for_ <F, std::void_t<decltype(memf_param_type(&F::operator()))>> {
+    using type = typename uint_type_<sizeof(decltype(memf_param_type(&F::operator())))>::type;
+};
+
+template <typename F>
+using counter_type_for = typename counter_type_for_<F>::type;
+
+//-----------------------------------------------------------
 
 template <typename FH, typename FI, typename FE, typename FA, typename FtCur>
-std::size_t select_table(odbc_raii_statement const& stmt        ,
-                        std::wstring const&         sql_expr    ,
-                        FH&&                        header_func ,
-                        FI&&                        init_func   ,
-                        FE&&                        elem_func   ,
-                        FA&&                        add_func    ,
-                        FtCur&&                     fetch_expr  ) noexcept
+auto select_table(odbc_raii_statement const& stmt           ,
+                  std::wstring const&         sql_expr      ,
+                  FH&&                        header_func   ,
+                  FI&&                        init_func     ,
+                  FE&&                        elem_func     ,
+                  FA&&                        add_func      ,
+                  FtCur&&                     fetch_expr    ) noexcept -> counter_type_for<FA>
 {
     try
     {
@@ -342,8 +376,7 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
         cursor_colser   c_closer{ stmt, true };
         bool_sentinel   bp;
         if (!(std::forward<FI>(init_func)(nresultcols), bp))    return 0;
-        auto const StrSizeofColumn = column_t::bufferSize;
-        std::size_t counter{ 0 };
+        counter_type_for<FA> counter{ 0 };
         while (true)
         {
             for (int j = 0; j < nresultcols; ++j)
@@ -374,12 +407,12 @@ std::size_t select_table(odbc_raii_statement const& stmt        ,
 }
 
 template <typename FH, typename FI, typename FE, typename FA>
-std::size_t select_table(odbc_raii_statement const& stmt        ,
-                         std::wstring const&        sql_expr    ,
-                        FH&&                        header_func ,
-                        FI&&                        init_func   ,
-                        FE&&                        elem_func   ,
-                        FA&&                        add_func    ) noexcept
+auto select_table(odbc_raii_statement const& stmt           ,
+                  std::wstring const&        sql_expr       ,
+                  FH&&                        header_func   ,
+                  FI&&                        init_func     ,
+                  FE&&                        elem_func     ,
+                  FA&&                        add_func      ) noexcept-> counter_type_for<FA>
 {
     return select_table(stmt    ,
                         sql_expr    ,
