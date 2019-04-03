@@ -771,12 +771,18 @@ VARIANT header_getter::getHeader() noexcept
 fputws_t::fputws_t(BSTR fileName, __int32 Code_Page, bool append, bool CrLf) noexcept
     : codepage_{ Code_Page }, CrLf_{ CrLf }
 {
+    bool newFile = !append;
+    if (codepage_ == 65001 && append)
+    {
+        std::wifstream ifs{ fileName };
+        if (!ifs.is_open())  newFile = true;
+    }
     FILE* fp = nullptr;
     auto openmode = std::wstring(append ? L"a+" : L"w");
     openmode += (codepage_ == 1200) ? L"t, ccs=UTF-16LE" : L"b";
     auto err = ::_wfopen_s(&fp, fileName, openmode.data());
     fc_RAII = fileCloseRAII{ err ? nullptr : fp };
-    if (codepage_ == 65001) //UTF-8 with BOM
+    if (codepage_ == 65001 && newFile)  //UTF-8 with BOM
     {
         char bom[] = { char(0xEF), char(0xBB), char(0xBF), '\0' };
         std::fputs(bom, fp);
