@@ -150,7 +150,6 @@ namespace detail {
             buf += buf2;
             q_count += quote_count(buf2);
         }
-        //コールバック（行読終）
         return map_csv_imple_elem(buf, delimiter, std::forward<F>(func));
     }
 
@@ -175,8 +174,9 @@ std::size_t map_csv(std::basic_istream<S, Traits>& stream, R delimiter, EF&& ele
     while (stream.good())
     {
         auto size = detail::map_csv_imple(stream, delimiter, std::forward<EF>(elem_func), buf, buf2, tmp, codepage);
-        std::forward<RF>(record_func)(rcount, size);
-        ++rcount;
+        //コールバック（行読終）
+        auto b = std::forward<RF>(record_func)(rcount++, size);
+        if (!b) break;
     }
     return rcount;
 }
