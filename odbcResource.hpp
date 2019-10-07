@@ -167,10 +167,10 @@ public:
 // ÉJÉ^ÉçÉOä÷êî  Catalog Infomation
 template <typename FC, typename Iter_t>
 std::vector<std::vector<std::wstring>>
-catalogValue(FC&&                        catalog_func    ,
-             odbc_raii_statement const&  st              ,
-             Iter_t                      columnNumber_begin  ,
-             Iter_t                      columnNumber_end    )
+catalogValue(FC&&                           catalog_func    ,
+             odbc_raii_statement const&     st              ,
+             Iter_t                         columnNumber_begin  ,
+             Iter_t                         columnNumber_end    )
 {
     std::vector<std::vector<std::wstring>> ret(columnNumber_end - columnNumber_begin);
     auto result = st.invoke(std::forward<FC>(catalog_func));
@@ -221,9 +221,9 @@ catalogValue(FC&&                        catalog_func    ,
 
 template <typename FC, typename Arr>
 std::vector<std::vector<std::wstring>>
-catalogValue(FC&&                       catalog_func     ,
-             odbc_raii_statement const&  st              ,
-             Arr&&                       arr             )
+catalogValue(FC&&                       catalog_func,
+             odbc_raii_statement const& st          ,
+             Arr&&                      arr         )
 {
     return catalogValue(std::forward<FC>(catalog_func)  ,
                         st  ,
@@ -412,8 +412,8 @@ struct colPosition_parameterCType   {
 
 template <typename Container_0, typename... Container_t>
 RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
-                            std::wstring const&                 schema_name ,
-                            std::wstring const&                 table_name  ,
+                            std::wstring                        schema_name ,
+                            std::wstring                        table_name  ,
                             std::wstring const&                 execSQL_expr,
                             colPosition_parameterCType* const   col_ctype   ,       // bindParameterAttribute*
                             Container_0&&                       container0  ,
@@ -423,24 +423,18 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
     {
         auto const size = std::size(std::forward<Container_0>(container0));
         if (size == 0 || schema_name.empty() || table_name.empty())     return SQL_ERROR; 
-        HSTMT h;
         cursor_colser   c_closer{stmt, true};
-        stmt.invoke([&](HSTMT x){ h = x;  return SQL_SUCCESS;});
-        ::SQLSetStmtAttr(h, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0);
-        ::SQLSetStmtAttr(h, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(size), 0);
-        SQLRETURN  rt, rt2;
         // óÒëÆê´ÇéÊìæ get columns attribute
         detail::bindParameterAttribute  attr[1+sizeof...(containers)];
         {
-            wchar_t schema_name_[256];  ::wcscpy_s(schema_name_, 256, &schema_name[0]);
-            wchar_t table_name_[256];   ::wcscpy_s(table_name_, 256 , &table_name[0]);
             auto column_func = [&](HSTMT x) {
+                auto sdfsd = &schema_name[0];
                 return ::SQLColumns(x,
                                     NULL,
                                     SQL_NTS,
-                                    schema_name_,
+                                    &schema_name[0],
                                     static_cast<SQLSMALLINT>(schema_name.length()),
-                                    table_name_,
+                                    &table_name[0],
                                     static_cast<SQLSMALLINT>(table_name.length()),
                                     NULL,
                                     SQL_NTS);
@@ -464,6 +458,11 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
                 else    return SQL_ERROR;
             }
         }   // </óÒëÆê´ÇéÊìæ get columns attribute>
+        HSTMT h;
+        stmt.invoke([&](HSTMT x){ h = x;  return SQL_SUCCESS;});
+        ::SQLSetStmtAttr(h, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0);
+        ::SQLSetStmtAttr(h, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(size), 0);
+        SQLRETURN  rt, rt2;
         std::vector<std::shared_ptr<detail::value_container_base>> value_container_vec;
         value_container_vec.reserve(1+ sizeof...(containers));
         rt = detail::bindParameters_imple(h,
@@ -510,7 +509,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
                             std::vector<std::wstring>*          pBuffer,
                             std::vector<SQLLEN>*                pdatastrlen,
                             F&&                                 write_func,
-                            bool                                close_      ) noexcept
+                            bool                                cursor_close    ) noexcept
 {
     auto const rc = execDirect(sql_expr, stmt);
     if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)    return 0;
@@ -561,7 +560,7 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
                                 &(*pdatastrlen)[j]);
         };
         auto const StrSizeofColumn = column_t::bufferSize;
-        cursor_colser   c_closer{ stmt, close_ };
+        cursor_colser   c_closer{ stmt, cursor_close };
         for (j = 0; j < nresultcols; ++j)
         {
             auto rc = stmt.invoke(SQLDescribeColExpr);
