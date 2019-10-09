@@ -253,8 +253,8 @@ namespace detail    {
         void reserve(std::size_t s) &   { actlen.reserve(s); }
         void push_back(int len) &       { actlen.push_back(len); }
         void bind_late(SQLPOINTER p) &  { current = p; }
-        SQLPOINTER get() const          { return 0 < actlen[counter]? current: nullptr; }
-        SQLLEN size() const             { return 0 < actlen[counter]? static_cast<SQLLEN>(actlen[counter]): 0; }
+        SQLPOINTER get_current() const  { return 0 < actlen[counter]? current: nullptr; }
+        SQLLEN get_size() const         { return 0 < actlen[counter]? static_cast<SQLLEN>(actlen[counter]): 0; }
         ValuePtrPtr& operator++() &
         {
             current = static_cast<char*>(current) + (0 < actlen[counter]? actlen[counter]: 0);
@@ -462,7 +462,7 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
         stmt.invoke([&](HSTMT x){ h = x;  return SQL_SUCCESS;});
         ::SQLSetStmtAttr(h, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0);
         ::SQLSetStmtAttr(h, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(size), 0);
-        SQLRETURN  rt, rt2;
+        SQLRETURN  rt;
         std::vector<std::shared_ptr<detail::value_container_base>> value_container_vec;
         value_container_vec.reserve(1+ sizeof...(containers));
         rt = detail::bindParameters_imple(h,
@@ -472,24 +472,21 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
                                           value_container_vec,
                                           std::forward<Container_0>(container0),
                                           std::forward<Container_t>(containers)...);
-        if ( rt == SQL_ERROR )      return rt;
+        if (SQL_SUCCESS != rt && SQL_SUCCESS_WITH_INFO != rt)       return rt;
         std::map<SQLPOINTER, detail::ValuePtrPtr>   vpp_map;
         for ( auto& elem : value_container_vec )    elem->move_vpp(vpp_map);
         if ( SQL_NEED_DATA == (rt = execDirect(execSQL_expr, stmt)) )
         {
             SQLPOINTER   ValuePtr;
-            while ( SQL_NEED_DATA == (rt = ::SQLParamData(h, &ValuePtr)) )
+            while ( SQL_NEED_DATA ==::SQLParamData(h, &ValuePtr) )
             {
                 if ( vpp_map.count(ValuePtr) )
                 {
                     detail::ValuePtrPtr& vpp = vpp_map[ValuePtr];
-                    if ( 0 <= vpp.size() )
-                        rt2 = ::SQLPutData(h, vpp.get(), vpp.size());
-                    else
-                        rt2 = ::SQLPutData(h, NULL, 0);
+                    auto rt2 = ::SQLPutData(h, vpp.get_current(), vpp.get_size());
+                    if (SQL_SUCCESS != rt2 && SQL_SUCCESS_WITH_INFO != rt2)   return rt2;
                     ++vpp;
                 }
-                if (SQL_ERROR == rt2)   return SQL_ERROR;
             }
         }
         return rt;
