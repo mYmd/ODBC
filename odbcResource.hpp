@@ -10,7 +10,6 @@
 #include <vector>
 #include <array>
 #include <type_traits>
-#include <map>
 
 #if _MSC_VER < 1900
 #define noexcept throw()
@@ -255,7 +254,7 @@ namespace detail    {
         void push_back_len(int len) &   { actlen.push_back(len); }
         void bind_late(SQLPOINTER p) &  { begin = current = p; }
         SQLPOINTER get_current() const  { return 0 <= actlen[counter]? current: nullptr; }
-        SQLLEN get_size() const         { return 0 <= actlen[counter]? static_cast<SQLLEN>(actlen[counter]): 0; }
+        SQLLEN get_size() const         { return 0 <= actlen[counter]? static_cast<SQLLEN>(actlen[counter]): SQL_NULL_DATA; }
         ValuePtrPtr& operator ++() &
         {
             current = static_cast<char*>(current) + (0 < actlen[counter]? actlen[counter]: 0);
@@ -272,7 +271,7 @@ namespace detail    {
     struct value_container_base    {
         virtual ~value_container_base() { };
         virtual SQLLEN buff_len() const { return 0; }
-        virtual void move_vpp(std::map<SQLPOINTER, ValuePtrPtr>&) { }
+        virtual void bind_late() { }
     };
 
     template <typename value_type, typename = void>     //文字列以外
@@ -287,8 +286,8 @@ namespace detail    {
             hold.push_back(p? *p: value_type{});
             StrLen_or_IndPtr.push_back(p? sizeof(value_type): SQL_NULL_DATA);
         }
-        SQLPOINTER  begin1()        {   return &hold[0];   }
-        SQLLEN*     begin2()        {   return &StrLen_or_IndPtr[0];    }
+        SQLPOINTER  begin1()        { return &hold[0]; }
+        SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
     };
 
     template <typename C, std::size_t N>            //固定長文字バッファ
@@ -303,9 +302,9 @@ namespace detail    {
             hold.push_back(p? *p: std::array<C, N>{});
             StrLen_or_IndPtr.push_back(p? SQL_NTS: SQL_NULL_DATA);
         }
-        SQLPOINTER  begin1()        {   return &hold[0];   }
-        SQLLEN*     begin2()        {   return &StrLen_or_IndPtr[0];    }
-        SQLLEN buff_len() const override    {   return sizeof(std::array<C, N>);    }
+        SQLPOINTER  begin1()        { return &hold[0]; }
+        SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
+        SQLLEN buff_len() const override    { return sizeof(std::array<C, N>); }
     };
 
     template <typename STR>            //文字列
@@ -321,16 +320,13 @@ namespace detail    {
             if (p) hold.append(*p);
             auto len = p? static_cast<SQLLEN>(sizeof(STR::value_type) * p->size()): 0;
             StrLen_or_IndPtr.push_back(SQL_LEN_DATA_AT_EXEC(len));
+            //StrLen_or_IndPtr.push_back(p? SQL_LEN_DATA_AT_EXEC(len): SQL_NULL_DATA);
             vpp.push_back_len(p? static_cast<int>(len): -1);
             return;
         }
-        SQLPOINTER  begin1()        { return &hold[0]; }
+        SQLPOINTER  begin1()        { return &vpp; }
         SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
-        void move_vpp(std::map<SQLPOINTER, ValuePtrPtr>& m) override
-        {
-            vpp.bind_late(&hold[0]);
-            m.insert_or_assign(&hold[0], std::move(vpp));
-        }
+        void bind_late() override   { vpp.bind_late(&hold[0]); }
     };
 
     //  numeric(13, 0) なら {SQL_C_CHAR, SQL_NUMERIC, 13, 0}
@@ -482,30 +478,26 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
                                           std::forward<Container_0>(container0),
                                           std::forward<Container_t>(containers)...);
         if (SQL_SUCCESS != rt && SQL_SUCCESS_WITH_INFO != rt)       return rt;
-        std::map<SQLPOINTER, detail::ValuePtrPtr>   vpp_map;
-        for ( auto& elem : value_container_vec )    elem->move_vpp(vpp_map);
+        for ( auto& elem : value_container_vec )    elem->bind_late();
         if ( SQL_NEED_DATA == (rt = execDirect(execSQL_expr, stmt)) )
         {
             SQLPOINTER   ValuePtr;
-            while ( SQL_NEED_DATA ==::SQLParamData(h, &ValuePtr) )
+            while ( SQL_NEED_DATA ==::SQLParamData(h, &ValuePtr) && ValuePtr )
             {
-                if ( vpp_map.count(ValuePtr) )
+                detail::ValuePtrPtr& vpp = *static_cast<detail::ValuePtrPtr*>(ValuePtr);
+                auto gc = static_cast<wchar_t*>(vpp.get_current());
+                auto gs = vpp.get_size();
+                auto rt2 = ::SQLPutData(h, vpp.get_current(), vpp.get_size());
+                if (SQL_SUCCESS != rt2 && SQL_SUCCESS_WITH_INFO != rt2)
                 {
-                    detail::ValuePtrPtr& vpp = vpp_map[ValuePtr];
-                    auto gc = static_cast<wchar_t*>(vpp.get_current());
-                    auto gs = vpp.get_size();
-                    auto rt2 = ::SQLPutData(h, vpp.get_current(), vpp.get_size());
-                    if (SQL_SUCCESS != rt2 && SQL_SUCCESS_WITH_INFO != rt2)
-                    {
 #ifndef NDEBUG
-                        mymd::SQLDiagRec<> diagRec;
-                        diagRec(h);
-                        auto ms = diagRec.getMessage();
+                    mymd::SQLDiagRec<> diagRec;
+                    diagRec(h);
+                    auto ms = diagRec.getMessage();
 #endif
-                        return rt2;
-                    }
-                    ++vpp;
+                    return rt2;
                 }
+                ++vpp;
             }
         }
         return rt;
