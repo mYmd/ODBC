@@ -38,7 +38,7 @@ Option Explicit
 '   Sub             commit              トランザクションのコミット（AUTO COMMIT設定=Falseの時のみ意味あり）
 '   Function        textOut             テキストファイル出力
 '   Function        rowSize             テーブルのレコード数
-'   Function        colSize             テーブルのカラム数
+'   Function        colSize             テーブルのカラム数（rowSize = 0の場合でもカラム数 > 0 はあり得る）
 '   Function        get_data            Select したテーブルデータのコピーを返す
 '   Function        move_data           Select したテーブルデータをmoveして返す
 '   Function        insert_expr         insert文
@@ -88,6 +88,13 @@ Private Declare PtrSafe Function execODBC Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
                                 ByRef SQLs As Variant) As Variant
 
+Private Declare PtrSafe Function executeODBC_mark Lib "vbODBC.dll" _
+                                    (ByVal n As Long, _
+                                ByRef SQL As Variant, _
+                            ByVal p_callback As LongPtr, _
+                        ByRef vbtypes As Variant, _
+                    ByRef Params As Variant) As Long
+
 Private Declare PtrSafe Sub set_autoCommit Lib "vbODBC.dll" _
                                     (ByVal n As Long, _
                                 ByVal autoCommit As Long)
@@ -118,7 +125,7 @@ Private Declare PtrSafe Function textOutODBC Lib "vbODBC.dll" ( _
                                             ByVal n As Long, _
                                         ByRef SQL_expr As Variant, _
                                     ByRef fileName As Variant, _
-                                ByRef delimiter As Variant, _
+                                ByRef Delimiter As Variant, _
                             ByVal quote As Boolean, _
                         ByVal append As Boolean, _
                     ByVal codepage_ As Long, _
@@ -137,6 +144,7 @@ Private connectionString    As String    ' 接続文字列もしくは接続エラー情報
 Private mySQL_              As String
 Private myheader_           As Variant
 Private mydata_             As Variant
+Private rowSize_ As Long, colSize_ As Long
 Private myErrorNo_          As Variant
 Private myNo_               As Long
 Private laptime_            As Long
@@ -180,6 +188,8 @@ End Function
 Public Sub clear()
     myheader_ = Empty
     mydata_ = Empty
+    rowSize_ = 0
+    colSize_ = 0
 End Sub
 
 ' 最後に成功した接続文字列もしくはエラー情報の取得
@@ -262,6 +272,8 @@ Public Function select_flat(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
     mydata_ = selectODBC(myNo_, sqlExpr, myheader_)
+    rowSize_ = sizeof(mydata_, 1)
+    colSize_ = sizeof(myheader_(0), 1)
     myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set select_flat = Me
@@ -272,6 +284,8 @@ Public Function select_rowWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
     mydata_ = selectODBC_rowWise(myNo_, sqlExpr, myheader_)
+    rowSize_ = sizeof(mydata_, 1)
+    colSize_ = sizeof(myheader_(0), 1)
     myheader_ = catC(myheader_(0), myheader_(1))
     laptime_ = GetTickCount() - laptime_
     Set select_rowWise = Me
@@ -282,7 +296,14 @@ Public Function select_columnWise(ByVal sqlExpr As String) As vb_ODBC
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
     mydata_ = selectODBC_columnWise(myNo_, sqlExpr, myheader_)
+    colSize_ = sizeof(myheader_(0), 1)
     myheader_ = catC(myheader_(0), myheader_(1))
+    rowSize_ = 0
+    If 0 < colSize_ Then
+        If 0 < sizeof(mydata_) Then
+            rowSize_ = sizeof(mydata_(0), 1)
+        End If
+    End If
     laptime_ = GetTickCount() - laptime_
     Set select_columnWise = Me
 End Function
@@ -312,9 +333,19 @@ Public Function exec(ByRef sqlExpr As Variant) As vb_ODBC
     Set exec = Me
 End Function
 
+' insert文やdelete文を実行する
+Public Function execute_mark(ByRef sqlExpr As Variant, _
+                    ByVal callback As LongPtr, ByRef vbtypes As Variant, ByRef data As Variant) As Long 'vb_ODBC
+    laptime_ = GetTickCount()
+    'myErrorNo_
+    execute_mark = executeODBC_mark(myNo_, sqlExpr, callback, vbtypes, data)
+    laptime_ = GetTickCount() - laptime_
+    'Set execute_mark = Me
+End Function
+
 'AUTO COMMIT 設定（デフォルトでは、True:AutoCommit）
-Public Sub autoCommit(ByVal b As Boolean)
-    Call set_autoCommit(myNo_, IIf(b, 1, 0))
+Public Sub autoCommit(ByVal B As Boolean)
+    Call set_autoCommit(myNo_, IIf(B, 1, 0))
 End Sub
 
 ' トランザクションのロールバック（AUTO COMMIT設定=Falseの時のみ意味あり）
@@ -351,7 +382,7 @@ End Sub
 Public Function textOut(ByVal sqlExpr As String, _
                         ByVal fileName As String, _
                         ByVal codepage As String, _
-                        Optional ByVal delimiter As String = ",", _
+                        Optional ByVal Delimiter As String = ",", _
                         Optional ByVal quote As Boolean = False, _
                         Optional ByVal append As Boolean = False, _
                         Optional ByVal topN As Long = -1, _
@@ -359,18 +390,18 @@ Public Function textOut(ByVal sqlExpr As String, _
                         Optional ByVal CrLf As Boolean = True) As Long
     mySQL_ = sqlExpr
     laptime_ = GetTickCount()
-    textOut = textOutODBC(myNo_, sqlExpr, fileName, delimiter, quote, append, getCodePage_(codepage), topN, flushMB, CrLf)
+    textOut = textOutODBC(myNo_, sqlExpr, fileName, Delimiter, quote, append, getCodePage_(codepage), topN, flushMB, CrLf)
     laptime_ = GetTickCount() - laptime_
 End Function
 
 ' テーブルのレコード数
 Public Function rowSize() As Long
-    rowSize = Haskell_2_stdFun.rowSize(mydata_)
+    rowSize = rowSize_
 End Function
 
 ' テーブルのカラム数
 Public Function colSize() As Long
-    colSize = Haskell_2_stdFun.colSize(mydata_)
+    colSize = colSize_
 End Function
 
 ' Select したテーブルデータのコピーを返す
@@ -475,9 +506,9 @@ End Function
     End Function
 
 ' インストールされているODBCドライバ配列を返す
-Public Function SQLDrivers(Optional ByVal buflen = 0) As Variant
+Public Function SQLDrivers(Optional ByVal bufLen = 0) As Variant
     Dim buf As String, ret As Byte, retL As Integer
-    buf = Space(IIf(0 < buflen, buflen, 2 * 1024))
+    buf = Space(IIf(0 < bufLen, bufLen, 2 * 1024))
     ret = SQLGetInstalledDrivers(buf, Len(buf), retL)
     SQLDrivers = Split(Left(buf, retL - 2), vbNullChar)
 End Function
