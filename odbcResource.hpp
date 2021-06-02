@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include <type_traits>
+#include <tuple>
 
 #if _MSC_VER < 1900
 #define noexcept throw()
@@ -244,6 +245,86 @@ namespace detail    {
     // https://docs.microsoft.com/en-us/sql/odbc/reference/syntax/sqlparamdata-function?redirectedfrom=MSDN&view=sql-server-2017
     // https://docs.microsoft.com/ja-jp/sql/odbc/reference/develop-app/using-arrays-of-parameters?view=sql-server-2017
 
+    template <typename T, typename = void>
+    constexpr bool has_size_v = false;
+    template <typename T>
+    constexpr bool has_size_v<T, std::void_t<decltype(std::size(std::declval<T>()))>> = true;
+    template <typename T, typename = void>
+    constexpr bool has_traits_v = false;
+    template <typename T>
+    constexpr bool has_traits_v<T, std::void_t<typename std::remove_reference_t<T>::traits_type>> = true;
+    //is T a sequential container type?（std::vector, std::array, U[] <=> std::string, int, int*, std::tuple ）
+    template <typename T>
+    constexpr bool is_container_v = has_size_v<T> && !has_traits_v<T> ;
+
+    template <typename T, typename = void>
+        constexpr bool is_pointer_v2 = std::is_pointer_v<T>;
+    template <typename T>
+        constexpr bool is_pointer_v2<T, std::void_t<decltype(std::declval<T>()[0])>> = true;
+    template <typename T>
+    struct decay_2 { using type = std::decay_t<std::remove_all_extents_t<T>>; };
+    template <typename T, std::size_t N>
+    struct decay_2<std::array<T, N>>    { using type = typename decay_2<T>::type; };
+    template <typename T>
+    using decay_t2 = typename decay_2<std::remove_reference_t<T>>::type;
+
+    template <typename T, typename = void>
+        struct make_signed2
+        { using type = std::make_signed_t<T>; };
+    template <typename T>
+        struct make_signed2<T, std::enable_if_t<std::is_signed_v<T> && !std::is_same_v<T, char>>>
+        { using type = T;};
+    template <typename T>
+        struct make_signed2<T, std::void_t<typename T::traits_type>>
+        { using type = typename T::value_type; };
+    template <>
+        struct make_signed2<bool>
+        { using type = signed char; };
+    template <>
+        struct make_signed2<wchar_t>
+        { using type = wchar_t; };
+    template <typename T>
+        using make_signed_t2 = typename make_signed2<T>::type;
+
+    using sql_types = std::tuple<SQLSMALLINT, SQLSMALLINT, SQLULEN>;
+
+    template <typename, bool is_pointer, bool is_integral, bool is_signed>
+    constexpr sql_types value_type_ = sql_types{SQL_C_DEFAULT, SQL_WVARCHAR, 0};
+    template <bool is_integral, bool is_signed>
+    constexpr sql_types value_type_<signed char, true, is_integral, is_signed> = sql_types{SQL_C_CHAR, SQL_VARCHAR, 0};
+    template <bool is_integral, bool is_signed>
+    constexpr sql_types value_type_<wchar_t, true, is_integral, is_signed>   = sql_types{SQL_C_WCHAR, SQL_WVARCHAR, 0};
+    template <>
+    constexpr sql_types value_type_<signed char, false, true, true> = sql_types{SQL_C_STINYINT, SQL_TINYINT, 3};
+    template <>
+    constexpr sql_types value_type_<signed char, false, true, false> = sql_types{SQL_C_BIT, SQL_BIT, 1};
+    template <>
+    constexpr sql_types value_type_<short, false, true, true>   = sql_types{SQL_C_SSHORT, SQL_INTEGER, 10};
+    template <>
+    constexpr sql_types value_type_<short, false, true, false>  = sql_types{SQL_C_USHORT, SQL_INTEGER, 10};
+    template <>
+    constexpr sql_types value_type_<int, false, true, true>     = sql_types{SQL_C_SLONG, SQL_INTEGER, 10};
+    template <>
+    constexpr sql_types value_type_<int, false, true, false>    = sql_types{SQL_C_ULONG, SQL_INTEGER, 10};
+    template <>
+    constexpr sql_types value_type_<long, false, true, true>    = sql_types{SQL_C_SLONG, SQL_INTEGER, 10};
+    template <>
+    constexpr sql_types value_type_<long, false, true, false>   = sql_types{SQL_C_ULONG, SQL_INTEGER, 10};
+    template <typename T>
+    constexpr sql_types value_type_<T, false, true, true>       = sql_types{SQL_C_SBIGINT, SQL_BIGINT, 19};
+    template <typename T>
+    constexpr sql_types value_type_<T, false, true, false>      = sql_types{SQL_C_UBIGINT, SQL_BIGINT, 19};
+    template <>
+    constexpr sql_types value_type_<float, false, false, true>  = sql_types{SQL_C_FLOAT, SQL_REAL, 7};
+    template <>
+    constexpr sql_types value_type_<double, false, false, true> = sql_types{SQL_C_DOUBLE, SQL_DOUBLE, 15};
+    //
+    template <typename T>
+    constexpr sql_types value_type_v = value_type_<make_signed_t2<decay_t2<std::remove_pointer_t<T>>>,
+                                                    is_pointer_v2<T>,
+                                                    std::is_integral_v<decay_t2<std::remove_pointer_t<T>>>,
+                                                    std::is_signed_v<decay_t2<std::remove_pointer_t<T>>>>;
+    //===================================================
     class ValuePtrPtr  {
         SQLPOINTER          begin, current;   //char*, wchar_t*
         std::size_t         counter;
@@ -253,11 +334,11 @@ namespace detail    {
         void init(std::size_t s) &      { actlen.reserve(s); }
         void push_back_len(int len) &   { actlen.push_back(len); }
         void bind_late(SQLPOINTER p) &  { begin = current = p; }
-        SQLPOINTER get_current() const  { return 0 <= actlen[counter]? current: nullptr; }
-        SQLLEN get_size() const         { return 0 <= actlen[counter]? static_cast<SQLLEN>(actlen[counter]): SQL_NULL_DATA; }
+        SQLPOINTER get_current() const  { return current; }
+        SQLLEN get_size() const         { return static_cast<SQLLEN>(actlen[counter]); }
         ValuePtrPtr& operator ++() &
         {
-            current = static_cast<char*>(current) + (0 < actlen[counter]? actlen[counter]: 0);
+            current = static_cast<char*>(current) + actlen[counter];
             ++counter;
             if (actlen.size() <= counter)       // ここ
             {
@@ -277,106 +358,105 @@ namespace detail    {
     template <typename value_type, typename = void>     //文字列以外
     struct value_container : value_container_base   {
         virtual ~value_container() = default;
-        std::vector<value_type> hold;
+        std::vector<value_type> holder;
         std::vector<SQLLEN>     StrLen_or_IndPtr;
-        void init(std::size_t s)        { hold.reserve(s); StrLen_or_IndPtr.reserve(s); }
+        void init(std::size_t s)        { holder.reserve(s); StrLen_or_IndPtr.reserve(s); }
         template <typename pointer_type>
         void push_back(pointer_type p)
         {
-            hold.push_back(p? *p: value_type{});
+            holder.push_back(p? *p: value_type{});
             StrLen_or_IndPtr.push_back(p? sizeof(value_type): SQL_NULL_DATA);
         }
-        SQLPOINTER  begin1()        { return &hold[0]; }
-        SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
+        SQLPOINTER  begin1()        { return &holder[0]; }
+        SQLLEN buff_len() const override    { return sizeof(value_type); }
+        SQLLEN*     begin2()        { return reinterpret_cast<SQLLEN*>(&StrLen_or_IndPtr[0]); }
     };
 
     template <typename C, std::size_t N>            //固定長文字バッファ
     struct value_container<std::array<C, N>> : value_container_base   {
         virtual ~value_container() = default;
-        std::vector<std::array<C, N>>   hold;
+        std::vector<std::array<C, N>>   holder;
         std::vector<SQLLEN>             StrLen_or_IndPtr;
-        void init(std::size_t s)        { hold.reserve(s); StrLen_or_IndPtr.reserve(s); }
+        void init(std::size_t s)        { holder.reserve(s); StrLen_or_IndPtr.reserve(s); }
         template <typename pointer_type>
         void push_back(pointer_type p)
         {
-            hold.push_back(p? *p: std::array<C, N>{});
+            holder.push_back(p? *p: std::array<C, N>{});
             StrLen_or_IndPtr.push_back(p? SQL_NTS: SQL_NULL_DATA);
         }
-        SQLPOINTER  begin1()        { return &hold[0]; }
-        SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
+        SQLPOINTER  begin1()        { return &holder[0]; }
+        SQLLEN*     begin2()        { return reinterpret_cast<SQLLEN*>(&StrLen_or_IndPtr[0]); }
         SQLLEN buff_len() const override    { return sizeof(std::array<C, N>); }
     };
 
     template <typename STR>            //文字列
     struct value_container<STR, std::void_t<typename STR::traits_type>> : value_container_base  {
         virtual ~value_container() = default;
-        STR                 hold;
+        STR                 holder;
         std::vector<SQLLEN> StrLen_or_IndPtr;
         ValuePtrPtr         vpp;
-        void init(std::size_t s)     { hold.reserve(s); StrLen_or_IndPtr.reserve(s); vpp.init(s); }
+        void init(std::size_t s)     { holder.reserve(s); StrLen_or_IndPtr.reserve(s); vpp.init(s); }
         template <typename pointer_type>
         void push_back(pointer_type p)
         {
-            if (p) hold.append(*p);
+            if (p)  holder.append(*p);
             auto len = p? static_cast<SQLLEN>(sizeof(STR::value_type) * p->size()): 0;
-            StrLen_or_IndPtr.push_back(SQL_LEN_DATA_AT_EXEC(len));
-            //StrLen_or_IndPtr.push_back(p? SQL_LEN_DATA_AT_EXEC(len): SQL_NULL_DATA);
-            vpp.push_back_len(p? static_cast<int>(len): -1);
+            //StrLen_or_IndPtr.push_back(p? len: SQL_NULL_DATA);
+            StrLen_or_IndPtr.push_back(p? SQL_LEN_DATA_AT_EXEC(len): SQL_NULL_DATA);
+            if (p)  vpp.push_back_len(static_cast<int>(len));
             return;
         }
         SQLPOINTER  begin1()        { return &vpp; }
-        SQLLEN*     begin2()        { return &StrLen_or_IndPtr[0]; }
-        void bind_late() override   { vpp.bind_late(&hold[0]); }
+        SQLLEN*     begin2()        { return reinterpret_cast<SQLLEN*>(&StrLen_or_IndPtr[0]); }
+        void bind_late() override   { vpp.bind_late(&holder[0]); }
     };
 
     //  numeric(13, 0) なら {SQL_C_CHAR, SQL_NUMERIC, 13, 0}
     struct bindParameterAttribute {
-        SQLSMALLINT       ValueType;           // fCType
+        SQLSMALLINT       cValueType;          // fCType
         SQLSMALLINT       ParameterType;       // fSqlType 
         SQLULEN           ColumnSize;          // cbColDef 
         SQLSMALLINT       DecimalDigits;
     };
 
-    template <typename...Container_t>
+    template <typename...>
     RETCODE bindParameters_imple(HSTMT,
-                                 std::size_t,
                                  SQLUSMALLINT,
-                                 bindParameterAttribute*,
                                  std::vector<std::shared_ptr<value_container_base>>&,
-                                 Container_t&&...) noexcept
+                                 std::size_t const) noexcept
     {
         return SQL_SUCCESS;
     }
 
     template <typename Container_0, typename... Container_t>
     RETCODE bindParameters_imple(HSTMT                              h,
-                                 std::size_t                        size,                             
                                  SQLUSMALLINT                       ParameterNumber,
-                                 bindParameterAttribute*            attr,
                                  std::vector<std::shared_ptr<value_container_base>>& value_container_vec,
+                                 std::size_t const                  container0_size,                             
                                  Container_0&&                      container0,
                                  Container_t&&...                   containers  ) noexcept
     {
-        if (size !=  std::size(std::forward<Container_0>(container0)))
+        if (container0_size != std::size(std::forward<Container_0>(container0)))
             return SQL_ERROR;
         using value_type = std::remove_cv_t<std::remove_reference_t<decltype(*container0[0])>>;
-        auto value_hdr = std::make_shared<value_container<value_type>>();
-        value_hdr->init(size);
+        sql_types attr = value_type_v<value_type>;
+        auto value_holder = std::make_shared<value_container<value_type>>();
+        value_holder->init(container0_size);
         for (auto const& p_elem : std::forward<Container_0>(container0) )
         {
-            value_hdr->push_back(p_elem);
+            value_holder->push_back(p_elem);
         }
-        auto rt = ::SQLBindParameter(h,
-                                     ParameterNumber,
-                                     SQL_PARAM_INPUT,
-                                     attr->ValueType,
-                                     attr->ParameterType,
-                                     attr->ColumnSize, 
-                                     attr->DecimalDigits,
-                                     value_hdr->begin1(),
-                                     value_hdr->buff_len(),     //BufferLength
-                                     value_hdr->begin2()  );
-        value_container_vec.push_back(std::move(value_hdr));
+        auto rt = ::SQLBindParameter(h  ,
+                                     ParameterNumber    ,
+                                     SQL_PARAM_INPUT    ,
+                                     std::get<0>(attr)  ,   // cValueType,
+                                     std::get<1>(attr)  ,   // ParameterType,
+                                     std::get<2>(attr)  ,   // ColumnSize, 
+                                     0                  ,   // DecimalDigits
+                                     value_holder->begin1(),        // ParameterValuePtr 
+                                     value_holder->buff_len(),      // BufferLength
+                                     value_holder->begin2()  );     // StrLen_or_IndPtr
+        value_container_vec.push_back(std::move(value_holder));
 #ifndef NDEBUG
         if  ( rt != SQL_SUCCESS && rt != SQL_SUCCESS_WITH_INFO )
         {
@@ -389,13 +469,18 @@ namespace detail    {
         return (rt != SQL_SUCCESS && rt != SQL_SUCCESS_WITH_INFO )?
             rt:
             bindParameters_imple(h,
-                                 size,
                                  ParameterNumber + 1,
-                                 attr + 1,
                                  value_container_vec,
+                                 container0_size,
                                  std::forward<Container_t>(containers)...);
     }
 
+    template <typename... ParamContainer_t>
+    std::size_t get_container0_size(ParamContainer_t&& ...)
+    { return 0; }
+    template <typename ParamContainer0_t, typename... ParamContainer_t>
+    std::size_t get_container0_size(ParamContainer0_t&& v, ParamContainer_t&& ...)
+    { return std::size(std::forward<ParamContainer0_t>(v)); }
 }       //</detail>
 
 
@@ -408,78 +493,54 @@ namespace detail    {
 // https://docs.microsoft.com/ja-jp/sql/odbc/reference/syntax/sqlbindparameter-function?view=sql-server-2017
 // Container_0, Container_t... は std::optional（またはポインタ）のシーケンスを想定
 // *********************************************************************************
+template <typename... Container_t>
+RETCODE bindParameters_prepare(const odbc_raii_statement&   stmt        ,
+                               std::wstring const&          execSQL_expr,
+                               std::vector<std::shared_ptr<detail::value_container_base>>& value_container_vec,
+                               Container_t&&...             containers  ) noexcept
+{
+    std::size_t const container0_size = detail::get_container0_size(std::forward<Container_t>(containers)...);
+    try
+    {
+        HSTMT h;
+        stmt.invoke([&](HSTMT x){ h = x;  return SQL_SUCCESS;});
+        ::SQLSetStmtAttr(h, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0);
+        ::SQLSetStmtAttr(h, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(container0_size), 0);
+        SQLRETURN  rt;
+        rt = detail::bindParameters_imple(h,
+                                          1,
+                                          value_container_vec,
+                                          container0_size,
+                                          std::forward<Container_t>(containers)...);
+        if (SQL_SUCCESS != rt && SQL_SUCCESS_WITH_INFO != rt)       return rt;
+        for ( auto& elem : value_container_vec )
+        {
+            elem->bind_late();
+        }
+        return execDirect(execSQL_expr, stmt);
+    }
+    catch(...)
+    {
+        return SQL_ERROR;
+    }
+}
 
-//bindParameterAttribute
-struct colPosition_parameterCType   {
-    int             colPosition;        // column number(1 origin)
-    SQLSMALLINT     parameterCType;     // C data type
-};
-
-template <typename Container_0, typename... Container_t>
+template <typename... Container_t>
 RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
-                            std::wstring                        schema_name ,
-                            std::wstring                        table_name  ,
                             std::wstring const&                 execSQL_expr,
-                            colPosition_parameterCType* const   col_ctype   ,       // bindParameterAttribute*
-                            Container_0&&                       container0  ,
                             Container_t&&...                    containers  ) noexcept
 {
     try
     {
-        auto const size = std::size(std::forward<Container_0>(container0));
-        if (size == 0 || schema_name.empty() || table_name.empty())     return SQL_ERROR; 
-        cursor_colser   c_closer{stmt, true};
-        // 列属性を取得 get columns attribute
-        detail::bindParameterAttribute  attr[1+sizeof...(containers)];
-        {
-            auto column_func = [&](HSTMT x) {
-                auto sdfsd = &schema_name[0];
-                return ::SQLColumns(x,
-                                    NULL,
-                                    SQL_NTS,
-                                    &schema_name[0],
-                                    static_cast<SQLSMALLINT>(schema_name.length()),
-                                    &table_name[0],
-                                    static_cast<SQLSMALLINT>(table_name.length()),
-                                    NULL,
-                                    SQL_NTS);
-            };
-            SQLUSMALLINT columns4[] = {17, 5, 7, 9};    //ORDINAL_POSITION, DATA_TYPE, COLUMN_SIZE, DECIMAL_DIGITS
-            auto column_attr = catalogValue(column_func, stmt, columns4);
-            std::vector<int>  colPosition(column_attr[0].size());
-            std::transform(column_attr[0].begin(), column_attr[0].end(), colPosition.begin(), [](std::wstring const& w){ return std::stoi(w); });
-            for ( auto i = 0 ; i < 1+sizeof...(containers); ++i )
-            {
-                auto ppos = std::find(colPosition.begin(), colPosition.end(), col_ctype[i].colPosition);
-                if (ppos < colPosition.end())
-                {
-                    auto pos = ppos - colPosition.begin();
-                    attr[i].ValueType = col_ctype[i].parameterCType;
-                    if ( column_attr[1][pos].empty() || column_attr[2][pos].empty() )   return SQL_ERROR;
-                    attr[i].ParameterType = static_cast<SQLSMALLINT>(std::stoi(column_attr[1][pos]));
-                    attr[i].ColumnSize = static_cast<SQLULEN>(std::stoi(column_attr[2][pos]));
-                    attr[i].DecimalDigits = static_cast<SQLSMALLINT>(std::stoi(column_attr[3][pos].empty()? L"0":column_attr[3][pos]));
-                }
-                else    return SQL_ERROR;
-            }
-        }   // </列属性を取得 get columns attribute>
+        std::vector<std::shared_ptr<detail::value_container_base>> value_container_vec;
+        value_container_vec.reserve(sizeof...(containers));
+        auto rt = bindParameters_prepare(stmt,
+                                         execSQL_expr,
+                                         value_container_vec,
+                                         std::forward<Container_t>(containers)...);
         HSTMT h;
         stmt.invoke([&](HSTMT x){ h = x;  return SQL_SUCCESS;});
-        ::SQLSetStmtAttr(h, SQL_ATTR_PARAM_BIND_TYPE, SQL_PARAM_BIND_BY_COLUMN, 0);
-        ::SQLSetStmtAttr(h, SQL_ATTR_PARAMSET_SIZE, reinterpret_cast<SQLPOINTER>(size), 0);
-        SQLRETURN  rt;
-        std::vector<std::shared_ptr<detail::value_container_base>> value_container_vec;
-        value_container_vec.reserve(1+ sizeof...(containers));
-        rt = detail::bindParameters_imple(h,
-                                          size,
-                                          1,
-                                          attr,
-                                          value_container_vec,
-                                          std::forward<Container_0>(container0),
-                                          std::forward<Container_t>(containers)...);
-        if (SQL_SUCCESS != rt && SQL_SUCCESS_WITH_INFO != rt)       return rt;
-        for ( auto& elem : value_container_vec )    elem->bind_late();
-        if ( SQL_NEED_DATA == (rt = execDirect(execSQL_expr, stmt)) )
+        if ( SQL_NEED_DATA == rt )
         {
             SQLPOINTER   ValuePtr;
             while ( SQL_NEED_DATA ==::SQLParamData(h, &ValuePtr) && ValuePtr )
@@ -511,15 +572,28 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
 //******************************************************************
 // 列の属性取得
 //******************************************************************
-template <typename F>
-SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
-                            std::wstring const&                 sql_expr,
-                            std::vector<std::wstring>*          pBuffer,
-                            std::vector<SQLLEN>*                pdatastrlen,
-                            F&&                                 write_func,
-                            bool                                cursor_close    ) noexcept
+template <typename F, typename... ParamContainer_t>
+SQLSMALLINT columnAttribute(odbc_raii_statement const&  stmt,
+                            std::wstring const&         sql_expr,
+                            std::vector<std::wstring>*  pBuffer,
+                            std::vector<SQLLEN>*        pdatastrlen,
+                            F&&                         write_func,
+                            bool                        cursor_close,
+                            ParamContainer_t&&...       paramcontainers  ) noexcept
 {
-    auto const rc = execDirect(sql_expr, stmt);
+    std::vector<std::shared_ptr<detail::value_container_base>> value_container_vec;
+    cursor_colser   c_closer{ stmt, cursor_close };
+    /*
+    auto const rc = bindParameters_prepare(stmt ,
+                                           sql_expr,
+                                           value_container_vec,
+                                           std::forward<ParamContainer_t>(paramcontainers)...);
+    //*/
+    auto const rc = bindParameters_exec(stmt,
+                                        sql_expr,
+                                        std::forward<ParamContainer_t>(paramcontainers)...);
+                                        //*/
+    //auto const rc = execDirect(sql_expr, stmt);
     if (rc == SQL_ERROR || rc == SQL_INVALID_HANDLE)    return 0;
     SQLSMALLINT nresultcols{ 0 };
     {
@@ -568,7 +642,6 @@ SQLSMALLINT columnAttribute(odbc_raii_statement const&          stmt,
                                 &(*pdatastrlen)[j]);
         };
         auto const StrSizeofColumn = column_t::bufferSize;
-        cursor_colser   c_closer{ stmt, cursor_close };
         for (j = 0; j < nresultcols; ++j)
         {
             auto rc = stmt.invoke(SQLDescribeColExpr);
@@ -658,47 +731,49 @@ using counter_type_for = typename counter_type_for_<F>::type;
    
    return  :  number of records    (type of parameter of add_func)     */
 //********************************************************************************
-template <typename FH, typename FI, typename FE, typename FA, typename FtCur>
-auto select_table(odbc_raii_statement const& stmt           ,
-                  std::wstring const&         sql_expr      ,
-                  FH&&                        header_func   ,
-                  FI&&                        init_func     ,
-                  FE&&                        elem_func     ,
-                  FA&&                        add_func      ,
-                  FtCur&&                     fetch_expr    ) noexcept -> counter_type_for<FA>
+template <typename FH, typename FI, typename FE, typename FA, typename... Parameters_t>
+auto select_table(odbc_raii_statement const&    stmt        ,
+                  std::wstring const&           sql_expr    ,
+                  FH&&                          header_func ,
+                  FI&&                          init_func   ,
+                  FE&&                          elem_func   ,
+                  FA&&                          add_func    ,
+                  Parameters_t&&...             parameters  ) noexcept -> counter_type_for<FA>
 {
     try
     {
         std::vector<SQLSMALLINT>        coltype;
-        auto write_func = [&](std::vector<column_t::name_type>&   colname_,
-                            std::vector<SQLSMALLINT>&           colnamelen_,
-                        std::vector<SQLULEN>&               collen_,
-                    std::vector<SQLSMALLINT>&           nullable_,
-                std::vector<SQLSMALLINT>&           coltype_,
-            std::vector<SQLSMALLINT>&           scale_)
+        auto write_func = [&](std::vector<column_t::name_type>&   colname_  ,
+                              std::vector<SQLSMALLINT>&           colnamelen_,
+                              std::vector<SQLULEN>&               collen_   ,
+                              std::vector<SQLSMALLINT>&           nullable_ ,
+                              std::vector<SQLSMALLINT>&           coltype_  ,
+                              std::vector<SQLSMALLINT>&           scale_    )
         {
             coltype = coltype_;
             std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_);
         };
         std::vector<std::wstring>           buffer;
         std::vector<SQLLEN>                 datastrlen;
-        auto nresultcols = columnAttribute( stmt        ,
-                                            sql_expr    ,
-                                            &buffer     ,
-                                            &datastrlen ,
-                                            write_func  ,
-                                            false       );
+        auto nresultcols = columnAttribute(stmt        ,
+                                           sql_expr    ,
+                                           &buffer     ,
+                                           &datastrlen ,
+                                           write_func  ,
+                                           false       ,
+                                           std::array<Parameters_t*,1>{&parameters}...);
         if (nresultcols == 0)          return 0;
         //-----------------------------------------------
         cursor_colser   c_closer{ stmt, true };
         bool_sentinel   bp;
         if (!(std::forward<FI>(init_func)(nresultcols), bp))    return 0;
         counter_type_for<FA> counter{ 0 };
+        auto fetch_expr = [](HSTMT x) { return ::SQLFetch(x); };
         while (true)
         {
             for (int j = 0; j < nresultcols; ++j)
                 buffer[j][0] = L'\0';
-            auto const rc = stmt.invoke(std::forward<FtCur>(fetch_expr));
+            auto const rc = stmt.invoke(fetch_expr);
             if (rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO)
             {
                 for (SQLSMALLINT j = 0; j < nresultcols; ++j)
@@ -723,24 +798,5 @@ auto select_table(odbc_raii_statement const& stmt           ,
     }
 }
 
-//*****************************************************
-// usual case of SELECT      (FtCur : SQLFetch)
-//*****************************************************
-template <typename FH, typename FI, typename FE, typename FA>
-auto select_table(odbc_raii_statement const& stmt           ,
-                  std::wstring const&        sql_expr       ,
-                  FH&&                        header_func   ,
-                  FI&&                        init_func     ,
-                  FE&&                        elem_func     ,
-                  FA&&                        add_func      ) noexcept-> counter_type_for<FA>
-{
-    return select_table(stmt    ,
-                        sql_expr    ,
-                        std::forward<FH>(header_func)   ,
-                        std::forward<FI>(init_func)     ,
-                        std::forward<FE>(elem_func)     ,
-                        std::forward<FA>(add_func)      ,
-                        [](HSTMT x) { return ::SQLFetch(x); }   );
-}
 
 }   // namespace mymd
