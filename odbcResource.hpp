@@ -607,6 +607,7 @@ namespace detail    {
 // https://docs.microsoft.com/ja-jp/sql/odbc/reference/syntax/sqlbindparameter-function?view=sql-server-2017
 // Container_0, Container_t... は std::optional（またはポインタ）のシーケンスを想定
 // *********************************************************************************
+//
 template <typename... Container_t>
 RETCODE bindParameters_prepare(const odbc_raii_statement&   stmt        ,
                                std::wstring const&          execSQL_expr,
@@ -635,10 +636,11 @@ RETCODE bindParameters_prepare(const odbc_raii_statement&   stmt        ,
     }
 }
 
+//カラムごとの配列を渡す
 template <typename... Container_t>
-RETCODE bindParameters_execmany(const odbc_raii_statement&  stmt        ,
-                                std::wstring const&         execSQL_expr,
-                                Container_t&&...            containers  ) noexcept
+RETCODE bindParameters_exec_columnwize(const odbc_raii_statement&  stmt        ,
+                                       std::wstring const&         execSQL_expr,
+                                       Container_t&&...            containers  ) noexcept
 {
     try
     {
@@ -685,9 +687,93 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
                             std::wstring const&                 execSQL_expr,
                             parameter_t&&...                    parameters  ) noexcept
 {
-    return bindParameters_execmany(stmt,
-                                   execSQL_expr,
-                                   std::array<std::remove_reference_t<parameter_t>*,1>{&parameters}...);
+    return bindParameters_exec_columnwize(
+        stmt,
+        execSQL_expr,
+        std::array<std::remove_reference_t<parameter_t>*,1>{&parameters}...
+    );
+}
+
+    namespace detail    {
+        template <typename T, typename=void>
+        constexpr bool is_optional_v = false;
+
+        template <typename T>
+        constexpr bool is_optional_v<T, std::void_t<typename T::value_type, decltype(std::declval<T>().has_value())>> = true;
+
+        template <typename T>   // scalar:0, struct:1, optional:2
+        constexpr int type_classify_v = (std::is_scalar_v<T>? 0: 1) + (is_optional_v<T>? 1: 0);
+
+        template <typename T, typename=void>
+        struct proxy_type_ { using type = T; };
+
+        template <typename T>
+        struct proxy_type_<T, std::enable_if_t<1==type_classify_v<T>>>
+        { using type = T*; };
+
+        template <typename T>
+        struct proxy_type_<T, std::enable_if_t<2==type_classify_v<T>>>
+        { using type = typename T::value_type*; };
+
+        template <typename T>
+        using proxy_type_t = typename proxy_type_<T>::type;
+
+        template <typename T>
+        auto proxy_type_v(T& x, std::integral_constant<int, 0>)->T&
+        {
+            return x;
+        }
+
+        template <typename T>
+        auto proxy_type_v(T& x, std::integral_constant<int, 1>)->T*
+        {
+            return &x;
+        }
+
+        template <typename T>
+        auto proxy_type_v(T& x, std::integral_constant<int, 2>)->typename T::value_type* 
+        {
+            return x.has_value()? &x.value(): nullptr;  //not value_or
+        }
+
+        template <std::size_t I, typename IT>
+        auto make_nth_vec(IT begin, IT end) ->std::vector<proxy_type_t<std::tuple_element_t<I, std::remove_reference_t<decltype(*begin)>>>> 
+        {
+            using tuple_t = std::remove_reference_t<decltype(*begin)>;
+            using ith = std::tuple_element_t<I, tuple_t>;
+            std::vector<proxy_type_t<ith>> ret;
+            ret.reserve(std::distance(begin, end));
+            for (auto it = begin; it != end; std::advance(it, 1))
+            {
+                ret.push_back(proxy_type_v(std::get<I>(*it), std::integral_constant<int, type_classify_v<ith>>()));
+            }
+            return ret;
+        }
+
+        template <std::size_t... I, typename IT>
+        RETCODE bindParameters_exec_rowwize_imple(std::index_sequence<I...>                 ,
+                                                  const odbc_raii_statement&  stmt          ,
+                                                  std::wstring const&         execSQL_expr  ,
+                                                  IT                          begin         ,
+                                                  IT                          end           ) noexcept
+        {
+            return bindParameters_exec_columnwize(stmt, execSQL_expr, make_nth_vec<I>(begin, end)...);
+        }
+    }
+
+//レコードごとの配列を渡す
+template <typename IT>
+RETCODE bindParameters_exec_rowwize(const odbc_raii_statement&  stmt        ,
+                                    std::wstring const&         execSQL_expr,
+                                    IT                          begin       ,
+                                    IT                          end         ) noexcept
+{
+    using ttype = std::remove_reference_t<decltype(*begin)>;
+    return detail::bindParameters_exec_rowwize_imple(std::make_index_sequence<std::tuple_size_v<ttype>>{},
+                                                    stmt,
+                                                    execSQL_expr,
+                                                    begin,
+                                                    end);
 }
 
 //******************************************************************
