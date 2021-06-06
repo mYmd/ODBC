@@ -485,7 +485,7 @@ namespace detail    {
         void push_back(string_type& str)
         {
             auto const len = static_cast<SQLLEN>(sizeof(STR::char_type) * str.size());
-            StrLen_or_IndPtr.push_back(p? SQL_LEN_DATA_AT_EXEC(len): SQL_NULL_DATA);
+            StrLen_or_IndPtr.push_back(SQL_LEN_DATA_AT_EXEC(len));
             vpp.push_back(&str[0]);
             vpp.push_back_len(static_cast<int>(len));
             return;
