@@ -484,9 +484,10 @@ namespace detail    {
         template <typename string_type>
         void push_back(string_type& str)
         {
-            auto const len = static_cast<SQLLEN>(sizeof(STR::char_type) * str.size());
+            using nonconst_t = std::remove_cv_t<std::remove_reference_t<decltype(str[0])>>;
+            auto const len = static_cast<SQLLEN>(sizeof(string_type::value_type) * str.size());
             StrLen_or_IndPtr.push_back(SQL_LEN_DATA_AT_EXEC(len));
-            vpp.push_back(&str[0]);
+            vpp.push_back(reinterpret_cast<SQLPOINTER>(const_cast<nonconst_t*>(&str[0])));
             vpp.push_back_len(static_cast<int>(len));
             return;
         }
