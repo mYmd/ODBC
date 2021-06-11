@@ -437,7 +437,7 @@ namespace detail    {
         void push_back(array_type& ar)
         {
             if (!pSeq)  pSeq = &ar[0];
-            StrLen_or_IndPtr.push_back(std::char_traits<char_type>::length(&ar[0]));
+            StrLen_or_IndPtr.push_back(sizeof(char_type) * std::char_traits<char_type>::length(&ar[0]));
         }
         SQLPOINTER  begin1()        { return static_cast<SQLPOINTER>(const_cast<char_type*>(pSeq)); }
         SQLLEN*     begin2()        { return reinterpret_cast<SQLLEN*>(&StrLen_or_IndPtr[0]); }
