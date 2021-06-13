@@ -164,7 +164,7 @@ public:
 // 17   ORDINAL_POSITION    INTEGER NOT NULL
 // 18   IS_NULLABLE         VARCHAR(254)
 //************************************************
-// カタログ関数  Catalog Infomation
+// カタログ関数  Catalog Infomation　begin, endを渡すバージョン
 template <typename FC, typename Iter_t>
 std::vector<std::vector<std::wstring>>
 catalogValue(FC&&                           catalog_func    ,
@@ -219,6 +219,7 @@ catalogValue(FC&&                           catalog_func    ,
     return ret;
 }
 
+// カタログ関数  Catalog Infomation コンテナを渡すバージョン
 template <typename FC, typename Arr>
 std::vector<std::vector<std::wstring>>
 catalogValue(FC&&                       catalog_func,
@@ -229,6 +230,40 @@ catalogValue(FC&&                       catalog_func,
                         st  ,
                         std::begin(std::forward<Arr>(arr))  ,
                         std::end(std::forward<Arr>(arr))    );
+}
+
+// カタログ関数  Catalog Infomation　std::initializer_list<>を渡すバージョン
+template <typename FC, typename I>
+std::vector<std::vector<std::wstring>>
+catalogValue(FC&&                           catalog_func,
+             odbc_raii_statement const&     st          ,
+             std::initializer_list<I>       li    )
+{
+    return catalogValue(std::forward<FC>(catalog_func), st, li.begin(), li.end());
+}
+
+// カタログ関数に渡す標準カラム定義関数
+inline auto stdColumnFunc(std::wstring const& schema, std::wstring const& table)
+{
+     return [schema_=schema, table_=table](HSTMT x)mutable {
+        auto schema_len = static_cast<SQLSMALLINT>(schema_.length());
+        auto table_len = static_cast<SQLSMALLINT>(table_.length());
+        wchar_t* pschema = (schema_len == 0)? nullptr: schema_.data();
+        wchar_t* ptable = (table_len == 0)? nullptr: table_.data();
+        return ::SQLColumns(x, NULL, SQL_NTS, pschema, schema_len, ptable, table_len, NULL, SQL_NTS);
+    };
+}
+
+// カタログ関数に渡す標準プライマリキー列関数
+inline auto stdPrimaryKeyFunc(std::wstring const& schema, std::wstring const& table)
+{
+     return [schema_=schema, table_=table](HSTMT x)mutable {
+        auto schema_len = static_cast<SQLSMALLINT>(schema_.length());
+        auto table_len = static_cast<SQLSMALLINT>(table_.length());
+        wchar_t* pschema = (schema_len == 0)? nullptr: schema_.data();
+        wchar_t* ptable = (table_len == 0)? nullptr: table_.data();
+        return ::SQLPrimaryKeys(x, NULL, SQL_NTS, pschema, schema_len, ptable, table_len);
+    };
 }
 
 //******************************************************************
@@ -298,22 +333,17 @@ namespace detail    {
     using decay_t2 = typename decay_2<std::remove_cv_t<std::remove_reference_t<T>>>::type;
 
     template <typename T, typename = void>
-        struct make_signed2
-        { using type = std::make_signed_t<T>; };
+        struct root_type_                     { using type = std::make_signed_t<T>; };
+    template <> struct root_type_<char>       { using type = char; };
+    template <> struct root_type_<wchar_t>    { using type = wchar_t; };
+    template <> struct root_type_<bool>       { using type = signed char; };
     template <typename T>
-        struct make_signed2<T, std::enable_if_t<std::is_signed_v<T> && !std::is_same_v<T, char>>>
-        { using type = T;};
-    template <>
-        struct make_signed2<bool>
-        { using type = signed char; };
-    template <>
-        struct make_signed2<wchar_t>
-        { using type = wchar_t; };
+    struct root_type_<T, std::enable_if_t<std::is_signed_v<T>>>
+                                                { using type = T; };
     template <typename T>
-        struct make_signed2<T, std::void_t<typename T::traits_type>>
-        { using type = typename make_signed2<typename T::value_type>::type; };
-    template <typename T>
-        using make_signed_t2 = typename make_signed2<T>::type;
+    struct root_type_<T, std::void_t<typename T::traits_type>>
+                                                { using type = typename T::value_type; };
+    template <typename T> using root_type = typename root_type_<T>::type;
 
     using sql_types = std::tuple<SQLSMALLINT, SQLSMALLINT, SQLULEN>;
 
@@ -321,9 +351,11 @@ namespace detail    {
     constexpr sql_types sql_type_ = sql_types{SQL_C_DEFAULT, SQL_WVARCHAR, 0};
 
     template <bool is_signed>
-    constexpr sql_types sql_type_<signed char, true, is_signed> = sql_types{SQL_C_CHAR, SQL_VARCHAR, 0};
+    constexpr sql_types sql_type_<char, true, is_signed> = sql_types{SQL_C_CHAR, SQL_VARCHAR, 0};
+    template <>
+    constexpr sql_types sql_type_<signed char, true, true> = sql_types{SQL_C_CHAR, SQL_VARCHAR, 0};
     template <bool is_signed>
-    constexpr sql_types sql_type_<wchar_t, true, is_signed>   = sql_types{SQL_C_WCHAR, SQL_WVARCHAR, 0};
+    constexpr sql_types sql_type_<wchar_t, true, is_signed> = sql_types{SQL_C_WCHAR, SQL_WVARCHAR, 0};
     template <>
     constexpr sql_types sql_type_<signed char, false, true> = sql_types{SQL_C_STINYINT, SQL_TINYINT, 3};
     template <>
@@ -350,7 +382,7 @@ namespace detail    {
     constexpr sql_types sql_type_<double, false, true> = sql_types{SQL_C_DOUBLE, SQL_DOUBLE, 15};
     //
     template <typename T>
-    constexpr sql_types sql_type_v = sql_type_<make_signed_t2<decay_t2<std::remove_pointer_t<deref_t<T>>>>,
+    constexpr sql_types sql_type_v = sql_type_<root_type<decay_t2<std::remove_pointer_t<deref_t<T>>>>,
                                                     is_pointer_or_array<deref_t<T>>,
                                                     std::is_signed_v<decay_t2<std::remove_pointer_t<deref_t<T>>>>>;
     //===================================================
@@ -551,8 +583,8 @@ namespace detail    {
         sql_types attr = sql_type_v<value_type>;
 //   template <typename value_type, bool str, std::size_t N, bool real>  //real:実体 true, 参照 falsse
         using deref_type = deref_t<value_type>;
-        using vc_type = value_container<make_signed_t2<decay_t2<std::remove_pointer_t<deref_type>>>,
-                              is_char_v<make_signed_t2<decay_t2<std::remove_pointer_t<deref_type>>>>,
+        using vc_type = value_container<root_type<decay_t2<std::remove_pointer_t<deref_type>>>,
+                              is_char_v<root_type<decay_t2<std::remove_pointer_t<deref_type>>>>,
                                                              size_for_value_container<deref_type>,
                                                             std::is_same_v<deref_type, value_type>>;
         auto value_holder = std::make_shared<vc_type>();
@@ -762,7 +794,7 @@ RETCODE bindParameters_exec(const odbc_raii_statement&          stmt        ,
         }
     }
 
-//レコードごとの配列を渡す
+//レコードごとの配列を渡す begin, end
 template <typename IT>
 RETCODE bindParameters_exec_rowwize(const odbc_raii_statement&  stmt        ,
                                     std::wstring const&         execSQL_expr,
@@ -951,8 +983,8 @@ auto select_table(odbc_raii_statement const&    stmt        ,
                               std::vector<SQLSMALLINT>&           coltype_  ,
                               std::vector<SQLSMALLINT>&           scale_    )
         {
-            coltype = coltype_;
             std::forward<FH>(header_func)(colname_, colnamelen_, collen_, nullable_, coltype_, scale_);
+            coltype = std::move(coltype_);
         };
         std::vector<std::wstring>           buffer;
         std::vector<SQLLEN>                 datastrlen;
